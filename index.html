@@ -1,148 +1,104 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="utf-8">
+<meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Oscar's Brushing Adventure</title>
+<title>Oscar's Brushing Timer</title>
 <style>
-  html, body { margin:0; padding:0; height:100%; background:#000; font-family:sans-serif; overflow:hidden; }
-  canvas { display:block; width:100vw; height:100vh; image-rendering:pixelated; background:#000; }
-  #hud { position:fixed; top:12px; left:12px; z-index:10; color:#fff; }
-  #timer { font-size:28px; font-weight:bold; margin-bottom:6px; }
-  #xpBar { width:260px; height:16px; background:#222; border:2px solid #333; border-radius:6px; overflow:hidden; }
+  body { margin:0; font-family:sans-serif; background:#1a1a1a; color:#fff; display:flex; flex-direction:column; align-items:center; justify-content:center; height:100vh; }
+  #timer { font-size:48px; margin-bottom:20px; }
+  #xpBar { width:300px; height:20px; background:#333; border-radius:10px; overflow:hidden; margin-bottom:20px; }
   #xpFill { width:0%; height:100%; background:#7CFC00; transition:width 0.1s linear; }
-  #reward { position:fixed; inset:0; display:none; align-items:center; justify-content:center; flex-direction:column; background:rgba(0,0,0,0.9); color:#fff; z-index:20; font-size:24px; text-align:center; }
-  #hand { position:fixed; bottom:6vh; left:50%; transform:translateX(-50%); width:160px; height:120px; image-rendering:pixelated; }
+  #hand { width:160px; height:160px; margin-bottom:20px; }
+  #startBtn { padding:12px 24px; font-size:18px; border:none; border-radius:8px; background:#4CAF50; color:#fff; cursor:pointer; }
+  #reward { display:none; text-align:center; margin-top:20px; }
+  #reward h2 { font-size:28px; color:#FFD700; }
 </style>
 </head>
 <body>
 
-<canvas id="game"></canvas>
-
-<div id="hud">
-  <div id="timer">2:00</div>
-  <div id="xpBar"><div id="xpFill"></div></div>
-</div>
-
-<img id="hand" src="" alt="Hand holding toothbrush">
+<div id="timer">2:00</div>
+<div id="xpBar"><div id="xpFill"></div></div>
+<img id="hand" src="" alt="Animated brushing hand">
+<button id="startBtn">Start Brushing</button>
 
 <div id="reward">
-  <div>🎉 Super Brusher! 🎉</div>
-  <div style="margin-top:12px;">
-    <button id="restart">Play Again</button>
-  </div>
+  <h2>🎉 Super Brusher! 🎉</h2>
+  <p>Well done, Oscar! Two minutes complete!</p>
+  <button id="restartBtn">Brush Again</button>
 </div>
 
 <script>
-const canvas = document.getElementById('game');
-const ctx = canvas.getContext('2d', { alpha:false });
-let DPR = Math.max(1, window.devicePixelRatio||1);
-
-function resizeCanvas(){
-  DPR = Math.max(1, window.devicePixelRatio||1);
-  canvas.width = Math.floor(window.innerWidth * DPR);
-  canvas.height = Math.floor(window.innerHeight * DPR);
-  canvas.style.width = window.innerWidth+'px';
-  canvas.style.height = window.innerHeight+'px';
-  ctx.setTransform(DPR,0,0,DPR,0,0);
-  ctx.imageSmoothingEnabled = false;
-}
-window.addEventListener('resize', resizeCanvas);
-resizeCanvas();
-
-/* ---------- Game State ---------- */
-const TOTAL_TIME = 120;
+// --------- Timer Setup ----------
+const TOTAL_TIME = 120; // seconds
 let elapsed = 0;
 let running = false;
-let lastSecond = -1;
-let currentBiome = 0;
-const biomes = ['#4CAF50','#C2B280','#2E7D32','#550055']; // grass, sand, forest, end-purple
-let particles = [];
-let brushPhase = 0;
-const xpFill = document.getElementById('xpFill');
+let timerInterval = null;
+
 const timerEl = document.getElementById('timer');
+const xpFill = document.getElementById('xpFill');
+const startBtn = document.getElementById('startBtn');
 const reward = document.getElementById('reward');
-const restartBtn = document.getElementById('restart');
+const restartBtn = document.getElementById('restartBtn');
 const handImg = document.getElementById('hand');
 
-/* ---------- Hand sprite ---------- */
-function makeHandSprite(){
-  const c = document.createElement('canvas'); c.width=96; c.height=72;
-  const g=c.getContext('2d'); g.imageSmoothingEnabled=false;
-  g.fillStyle='#F1C27D'; g.fillRect(6,38,34,12); // hand
-  g.fillStyle='#C2A476'; g.fillRect(44,44,36,8); // brush handle
-  g.fillStyle='#fff'; g.fillRect(52,34,28,8); // bristles
+// --------- Hand Animation ----------
+let brushPhase = 0;
+function makeHandSprite() {
+  const c = document.createElement('canvas');
+  c.width = 64; c.height = 64;
+  const ctx = c.getContext('2d');
+  ctx.fillStyle = '#C2A476'; ctx.fillRect(20,40,24,6); // brush handle
+  ctx.fillStyle = '#fff'; ctx.fillRect(24,32,16,8);     // bristles
+  ctx.fillStyle = '#F1C27D'; ctx.fillRect(10,34,16,12);  // hand
   return c.toDataURL();
 }
 handImg.src = makeHandSprite();
 
-/* ---------- Controls ---------- */
-function startGame(){ running=true; elapsed=0; lastSecond=-1; currentBiome=0; particles=[]; reward.style.display='none'; if(!animating) requestAnimationFrame(loop);}
-function restartGame(){ running=false; elapsed=0; xpFill.style.width='0%'; timerEl.textContent='2:00'; reward.style.display='none'; currentBiome=0; particles=[]; startGame();}
-restartBtn.addEventListener('click', restartGame);
-
-/* ---------- Helpers ---------- */
-function formatTime(sec){ const m=Math.floor(sec/60); const s=sec%60; return m+':'+(s<10?'0':'')+s; }
-function spawnParticles(x,y,count=12,color='#ff55ff'){ for(let i=0;i<count;i++){ particles.push({x,y,vx:(Math.random()-0.5)*2,vy:(Math.random()-1.5),life:30+Math.random()*30,size:2+Math.random()*2,color}); }}
-
-/* ---------- Update ---------- */
-function update(dt){
-  if(!running) return;
-  elapsed += dt;
-  const sec = Math.floor(elapsed);
-  if(sec!==lastSecond){ lastSecond=sec; }
-  const progress = Math.min(1,elapsed/TOTAL_TIME);
-  xpFill.style.width = (progress*100)+'%';
-  timerEl.textContent = formatTime(Math.max(0,TOTAL_TIME-Math.floor(elapsed)));
-
-  // update biome every 30s
-  const newBiome = Math.floor(elapsed/30);
-  if(newBiome!==currentBiome){ currentBiome=newBiome; spawnParticles(canvas.width/2,canvas.height/2,24,'#ff55ff'); }
-
-  // particles physics
-  particles.forEach(p=>{ p.x+=p.vx; p.y+=p.vy; p.vy+=0.04; p.life--; });
-  particles = particles.filter(p=>p.life>0);
-
-  if(elapsed>=TOTAL_TIME){ running=false; reward.style.display='flex'; }
+function animateHand() {
+  brushPhase += 0.15;
+  const sway = Math.sin(brushPhase) * 10;
+  handImg.style.transform = `translateX(${sway}px)`;
+  if(running) requestAnimationFrame(animateHand);
 }
 
-/* ---------- Draw ---------- */
-function draw(){
-  const W=canvas.width/DPR; const H=canvas.height/DPR;
-  // background
-  ctx.fillStyle = biomes[Math.min(currentBiome,biomes.length-1)];
-  ctx.fillRect(0,0,W,H);
-
-  // simple ground
-  ctx.fillStyle='#654321'; ctx.fillRect(0,H*0.7,W,H*0.3);
-
-  // particles
-  particles.forEach(p=>{ ctx.fillStyle=p.color; ctx.fillRect(p.x-1,p.y-1,p.size,p.size); });
-
-  // vignette
-  const grad=ctx.createRadialGradient(W/2,H/2,W*0.1,W/2,H/2,W*0.8);
-  grad.addColorStop(0,'rgba(0,0,0,0)');
-  grad.addColorStop(1,'rgba(0,0,0,0.25)');
-  ctx.fillStyle=grad; ctx.fillRect(0,0,W,H);
+// --------- Timer Functions ----------
+function formatTime(sec) {
+  const m = Math.floor(sec / 60);
+  const s = sec % 60;
+  return m + ':' + (s<10?'0':'') + s;
 }
 
-/* ---------- Hand Animation ---------- */
-function drawHand(dt){ brushPhase+=dt*2.0; const sway=Math.sin(brushPhase)*8; const bob=Math.sin(brushPhase*1.5)*6; handImg.style.transform=`translateX(-50%) translateY(${bob}px) rotate(${sway*0.01}rad)`; }
-
-/* ---------- Loop ---------- */
-let lastTime=performance.now(); let animating=false;
-function loop(now){
-  animating=true;
-  const dt=Math.min(0.05,(now-lastTime)/1000);
-  lastTime=now;
-  update(dt);
-  draw();
-  drawHand(dt);
-  if(running || particles.length>0) requestAnimationFrame(loop);
-  else animating=false;
+function updateTimer() {
+  elapsed++;
+  timerEl.textContent = formatTime(TOTAL_TIME - elapsed);
+  xpFill.style.width = (elapsed / TOTAL_TIME * 100) + '%';
+  if(elapsed >= TOTAL_TIME) {
+    clearInterval(timerInterval);
+    running = false;
+    reward.style.display = 'block';
+  }
 }
-requestAnimationFrame(loop);
 
+function startBrushing() {
+  if(running) return;
+  running = true;
+  elapsed = 0;
+  timerEl.textContent = formatTime(TOTAL_TIME);
+  xpFill.style.width = '0%';
+  reward.style.display = 'none';
+  startBtn.style.display = 'none';
+  timerInterval = setInterval(updateTimer, 1000);
+  animateHand();
+}
+
+// --------- Button Events ----------
+startBtn.addEventListener('click', startBrushing);
+restartBtn.addEventListener('click', () => {
+  startBtn.style.display = 'inline-block';
+  reward.style.display = 'none';
+});
 </script>
+
 </body>
 </html>
