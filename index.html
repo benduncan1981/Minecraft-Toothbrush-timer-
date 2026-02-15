@@ -4,137 +4,662 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Oscar's Tooth Quest Elite</title>
-<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Nunito:wght@400;700&display=swap" rel="stylesheet">
 <style>
-*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
-body{font-family:'Press Start 2P',monospace;background:#111;color:white;overflow:hidden;}
-canvas{position:fixed;top:0;left:0;width:100%;height:100%;image-rendering:pixelated;}
-.ui{position:relative;z-index:10;text-align:center;padding:15px;}
-h1{font-size:14px;text-shadow:3px 3px black;margin-bottom:10px;}
-.timer{font-size:28px;margin:15px 0;text-shadow:4px 4px black;}
-.xp-bar{width:90%;margin:0 auto;height:18px;background:#222;border:4px solid black;position:relative;}
-.xp-fill{height:100%;width:0%;background:#7CFC00;}
-button{font-family:'Press Start 2P',monospace;margin-top:10px;padding:12px;width:90%;background:#5e3716;color:white;border:5px solid black;}
-.mouth{width:160px;height:100px;margin:15px auto;display:grid;grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr;gap:4px;}
-.quad{background:#550000;border:3px solid black;}
-.active{background:#ff4444;}
-.stats{font-size:8px;margin-top:10px;}
+*{
+  box-sizing:border-box;
+  margin:0;
+  padding:0;
+  -webkit-tap-highlight-color:transparent;
+}
+body{
+  font-family:'Nunito',system-ui,-apple-system,sans-serif;
+  background:#000;
+  color:#f5f5f5;
+  overflow:hidden;
+}
+canvas{
+  position:fixed;
+  top:0;
+  left:0;
+  width:100%;
+  height:100%;
+  image-rendering:pixelated;
+  z-index:0;
+}
+.ui-root{
+  position:relative;
+  z-index:10;
+  width:100%;
+  display:flex;
+  justify-content:center;
+  align-items:flex-start;
+  padding:16px;
+}
+.ui-panel{
+  max-width:420px;
+  width:100%;
+  background:#1b1209;
+  border:6px solid #000;
+  box-shadow:0 0 0 4px #3b2814,0 12px 0 #000;
+  padding:18px 16px 20px;
+  border-radius:6px;
+  position:relative;
+}
+.ui-panel::before,
+.ui-panel::after{
+  content:"";
+  position:absolute;
+  inset:-6px;
+  border:2px solid rgba(0,0,0,0.4);
+  pointer-events:none;
+}
+.app-title{
+  font-family:'Press Start 2P',monospace;
+  font-size:14px;
+  text-align:center;
+  color:#fdf5d0;
+  text-shadow:3px 3px #000;
+  margin-bottom:10px;
+}
+.subtitle{
+  font-size:11px;
+  text-align:center;
+  color:#d8c7a0;
+  margin-bottom:10px;
+}
+.timer{
+  font-family:'Press Start 2P',monospace;
+  font-size:26px;
+  text-align:center;
+  margin:10px 0 14px;
+  color:#fff;
+  text-shadow:4px 4px #000;
+}
+.timer.low{
+  color:#ff5555;
+}
+.mouth-label{
+  font-size:11px;
+  text-align:center;
+  color:#f0e0b5;
+  margin-bottom:6px;
+}
+.mouth{
+  width:220px;
+  height:140px;
+  margin:0 auto 10px;
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  grid-template-rows:1fr 1fr;
+  gap:6px;
+}
+.biome{
+  position:relative;
+  border:4px solid #000;
+  border-radius:4px;
+  overflow:hidden;
+  box-shadow:0 4px 0 #000;
+  background:#2b2b2b;
+}
+.biome-inner{
+  width:100%;
+  height:100%;
+  image-rendering:pixelated;
+}
+.biome-label{
+  position:absolute;
+  left:4px;
+  bottom:4px;
+  font-size:8px;
+  font-family:'Press Start 2P',monospace;
+  color:#fdf5d0;
+  text-shadow:2px 2px #000;
+}
+.biome.active{
+  box-shadow:0 0 0 3px #fff,0 4px 0 #000;
+}
+.biome.active::after{
+  content:"";
+  position:absolute;
+  inset:0;
+  background:radial-gradient(circle at 50% 20%,rgba(255,255,255,0.35),transparent 55%);
+  pointer-events:none;
+}
+.xp-wrapper{
+  margin:10px auto 4px;
+  width:100%;
+}
+.xp-label-row{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  font-size:11px;
+  color:#f0e0b5;
+  margin-bottom:4px;
+}
+.xp-bar{
+  width:100%;
+  height:18px;
+  background:#1a1a1a;
+  border:4px solid #000;
+  box-shadow:0 3px 0 #000;
+  position:relative;
+  overflow:hidden;
+}
+.xp-fill{
+  height:100%;
+  width:0%;
+  background:linear-gradient(90deg,#3adf4a,#7CFC00);
+  box-shadow:0 0 8px rgba(124,252,0,0.7);
+  transition:width 0.25s ease-out;
+}
+.xp-ticks{
+  position:absolute;
+  inset:0;
+  pointer-events:none;
+}
+.xp-ticks div{
+  position:absolute;
+  top:0;
+  bottom:0;
+  width:1px;
+  background:rgba(0,0,0,0.4);
+}
+.btn-row{
+  margin-top:12px;
+  display:flex;
+  gap:8px;
+}
+button{
+  flex:1;
+  font-family:'Press Start 2P',monospace;
+  font-size:9px;
+  padding:10px 6px;
+  background:#5e3716;
+  color:#fdf5d0;
+  border:4px solid #000;
+  box-shadow:0 4px 0 #000;
+  cursor:pointer;
+  text-transform:uppercase;
+}
+button:active{
+  transform:translateY(2px);
+  box-shadow:0 2px 0 #000;
+}
+button:disabled{
+  opacity:0.5;
+  cursor:default;
+  transform:none;
+  box-shadow:0 4px 0 #000;
+}
+.stats{
+  font-size:11px;
+  color:#f0e0b5;
+  margin-top:12px;
+  line-height:1.4;
+}
+.stats strong{
+  font-weight:700;
+  color:#fff;
+}
+.badge-row{
+  margin-top:8px;
+  display:flex;
+  flex-wrap:wrap;
+  gap:4px;
+}
+.badge{
+  font-size:8px;
+  font-family:'Press Start 2P',monospace;
+  padding:3px 5px;
+  border-radius:3px;
+  border:2px solid #000;
+  background:#2f4f2f;
+  color:#fdf5d0;
+  box-shadow:0 2px 0 #000;
+}
+.badge.streak{
+  background:#4b2f4f;
+}
+.badge.level{
+  background:#2f3f6b;
+}
+.footer-note{
+  margin-top:10px;
+  font-size:9px;
+  text-align:center;
+  color:#a58f6a;
+}
+@media (max-width:480px){
+  .ui-panel{
+    padding:14px 12px 16px;
+  }
+  .app-title{
+    font-size:12px;
+  }
+  .timer{
+    font-size:22px;
+  }
+  .mouth{
+    width:200px;
+    height:130px;
+  }
+}
 </style>
 </head>
 <body>
 <canvas id="game"></canvas>
 
-<div class="ui">
-<h1>Oscar's Tooth Quest</h1>
-<div class="timer" id="timer">02:00</div>
-<div class="mouth">
-<div class="quad" id="q0"></div>
-<div class="quad" id="q1"></div>
-<div class="quad" id="q1b"></div>
-<div class="quad" id="q3"></div>
-</div>
-<div class="xp-bar">
-<div class="xp-fill" id="xp"></div>
-</div>
-<button id="startBtn">START QUEST</button>
-<button id="resetBtn" style="display:none;">RESTART</button>
-<div class="stats" id="stats"></div>
+<div class="ui-root">
+  <div class="ui-panel">
+    <div class="app-title">Oscar's Tooth Quest Elite</div>
+    <div class="subtitle">2‑Minute Block World Brush Timer</div>
+    <div id="timer" class="timer">02:00</div>
+
+    <div class="mouth-label">Work through each “tooth biome” as the timer progresses</div>
+    <div class="mouth">
+      <div class="biome" data-index="0">
+        <canvas class="biome-inner"></canvas>
+        <div class="biome-label">Grasslands</div>
+      </div>
+      <div class="biome" data-index="1">
+        <canvas class="biome-inner"></canvas>
+        <div class="biome-label">Stone Hills</div>
+      </div>
+      <div class="biome" data-index="2">
+        <canvas class="biome-inner"></canvas>
+        <div class="biome-label">Desert</div>
+      </div>
+      <div class="biome" data-index="3">
+        <canvas class="biome-inner"></canvas>
+        <div class="biome-label">Snow Peaks</div>
+      </div>
+    </div>
+
+    <div class="xp-wrapper">
+      <div class="xp-label-row">
+        <span>Quest Progress</span>
+        <span id="xpPercent">0%</span>
+      </div>
+      <div class="xp-bar">
+        <div class="xp-fill" id="xpFill"></div>
+        <div class="xp-ticks" id="xpTicks"></div>
+      </div>
+    </div>
+
+    <div class="btn-row">
+      <button id="startBtn">Start Quest</button>
+      <button id="resetBtn" style="display:none;">Restart</button>
+    </div>
+
+    <div class="stats" id="stats"></div>
+    <div class="badge-row">
+      <div class="badge level" id="levelBadge">Level 1</div>
+      <div class="badge streak" id="streakBadge">Streak 0</div>
+      <div class="badge" id="minutesBadge">0 mins total</div>
+    </div>
+
+    <div class="footer-note">
+      Brush all sides while each biome glows. Finish the quest, grow your world.
+    </div>
+  </div>
 </div>
 
 <script>
-const canvas=document.getElementById('game');
-const ctx=canvas.getContext('2d');
-canvas.width=window.innerWidth;
-canvas.height=window.innerHeight;
-
-let particles=[];
-
-function spawnParticle(x,y){
-  particles.push({x,y,vx:(Math.random()-0.5)*4,vy:-Math.random()*4,life:60});
+// ===== Canvas Setup =====
+const canvas = document.getElementById('game');
+const ctx = canvas.getContext('2d');
+function resizeCanvas(){
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
 }
+resizeCanvas();
+window.addEventListener('resize', resizeCanvas);
 
+// ===== Background World (Blocky Sky + Ground) =====
+let clouds = [];
+function initClouds(){
+  clouds = [];
+  for(let i=0;i<6;i++){
+    clouds.push({
+      x:Math.random()*canvas.width,
+      y:40+Math.random()*120,
+      speed:0.2+Math.random()*0.3,
+      width:40+Math.random()*40
+    });
+  }
+}
+initClouds();
+
+// ===== Particles (Voxel Cubes) =====
+let particles = [];
+function spawnParticle(x,y,color){
+  particles.push({
+    x,y,
+    vx:(Math.random()-0.5)*2,
+    vy:-1.5-Math.random()*1.5,
+    life:50+Math.random()*20,
+    color
+  });
+}
+function burstParticles(x,y,color,count=60){
+  for(let i=0;i<count;i++){
+    spawnParticle(x,y,color);
+  }
+}
 function updateParticles(){
   particles.forEach(p=>{
-    p.x+=p.vx; p.y+=p.vy; p.vy+=0.2; p.life--;
+    p.x += p.vx;
+    p.y += p.vy;
+    p.vy += 0.05;
+    p.life--;
   });
-  particles=particles.filter(p=>p.life>0);
+  particles = particles.filter(p=>p.life>0);
 }
-
 function drawParticles(){
-  ctx.fillStyle="#7CFC00";
-  particles.forEach(p=>ctx.fillRect(p.x,p.y,4,4));
+  particles.forEach(p=>{
+    const size = 6;
+    ctx.fillStyle = p.color;
+    ctx.fillRect(Math.round(p.x),Math.round(p.y),size,size);
+    ctx.fillStyle = 'rgba(0,0,0,0.4)';
+    ctx.fillRect(Math.round(p.x),Math.round(p.y+size-2),size,2);
+  });
 }
 
+// ===== Main Background Draw =====
 function drawBackground(){
-  const h=new Date().getHours();
-  ctx.fillStyle=(h>=18||h<6)?"#001":"#87ceeb";
+  const h = new Date().getHours();
+  const isNight = (h>=20 || h<6);
+
+  const topColor = isNight ? '#050816' : '#6ec5ff';
+  const bottomColor = isNight ? '#0a1020' : '#9ad8ff';
+
+  const grad = ctx.createLinearGradient(0,0,0,canvas.height*0.6);
+  grad.addColorStop(0,topColor);
+  grad.addColorStop(1,bottomColor);
+  ctx.fillStyle = grad;
   ctx.fillRect(0,0,canvas.width,canvas.height);
+
+  // Sun / Moon
+  ctx.save();
+  ctx.translate(canvas.width-80,80);
+  ctx.fillStyle = isNight ? '#f5f5ff' : '#ffe27a';
+  ctx.beginPath();
+  ctx.arc(0,0,26,0,Math.PI*2);
+  ctx.fill();
+  ctx.restore();
+
+  // Clouds
+  ctx.fillStyle = isNight ? '#cfd6ff' : '#ffffff';
+  clouds.forEach(c=>{
+    c.x += c.speed;
+    if(c.x > canvas.width+60) c.x = -80;
+    drawPixelCloud(c.x,c.y,c.width);
+  });
+
+  // Ground (blocky layers)
+  const groundHeight = canvas.height*0.28;
+  const baseY = canvas.height-groundHeight;
+  ctx.fillStyle = '#3b2a16';
+  ctx.fillRect(0,baseY,canvas.width,groundHeight);
+
+  // Dirt blocks
+  const blockSize = 24;
+  for(let x=0;x<canvas.width;x+=blockSize){
+    for(let y=baseY;y<canvas.height;y+=blockSize){
+      drawBlock(x,y,blockSize,'#4b341c','#3b2a16');
+    }
+  }
+
+  // Grass strip
+  const grassHeight = 22;
+  ctx.fillStyle = '#3f8f2b';
+  ctx.fillRect(0,baseY-grassHeight,canvas.width,grassHeight);
+  for(let x=0;x<canvas.width;x+=blockSize){
+    drawBlockTop(x,baseY-grassHeight,blockSize,'#4caf34','#2f6f1f');
+  }
+}
+function drawPixelCloud(x,y,w){
+  const h = w*0.6;
+  const step = 8;
+  for(let i=0;i<w;i+=step){
+    for(let j=0;j<h;j+=step){
+      if(Math.random()>0.25){
+        ctx.fillRect(Math.round(x+i),Math.round(y+j),step,step);
+      }
+    }
+  }
+}
+function drawBlock(x,y,size,topColor,sideColor){
+  ctx.fillStyle = sideColor;
+  ctx.fillRect(x,y,size,size);
+  ctx.fillStyle = topColor;
+  ctx.fillRect(x,y,size,size-4);
+}
+function drawBlockTop(x,y,size,topColor,shadowColor){
+  ctx.fillStyle = topColor;
+  ctx.fillRect(x,y,size,18);
+  ctx.fillStyle = shadowColor;
+  ctx.fillRect(x,y+14,size,4);
 }
 
-let totalTime=120;
-let timeLeft=totalTime;
-let timerInterval=null;
-let running=false;
+// ===== Biome Tiles (Mouth Quadrants) =====
+const biomeEls = Array.from(document.querySelectorAll('.biome'));
+const biomeCanvases = biomeEls.map(el=>el.querySelector('canvas'));
+function resizeBiomeCanvases(){
+  biomeCanvases.forEach(c=>{
+    const rect = c.getBoundingClientRect();
+    c.width = rect.width*2;
+    c.height = rect.height*2;
+  });
+  drawAllBiomes();
+}
+window.addEventListener('resize',resizeBiomeCanvases);
+function drawAllBiomes(){
+  biomeCanvases.forEach((c,i)=>{
+    const bctx = c.getContext('2d');
+    bctx.imageSmoothingEnabled = false;
+    bctx.clearRect(0,0,c.width,c.height);
+    drawBiome(bctx,c.width,c.height,i);
+  });
+}
+function drawBiome(bctx,w,h,index){
+  const blockSize = Math.floor(w/8);
+  const cols = Math.ceil(w/blockSize);
+  const rows = Math.ceil(h/blockSize);
 
-const timerEl=document.getElementById("timer");
-const xpEl=document.getElementById("xp");
-const startBtn=document.getElementById("startBtn");
-const resetBtn=document.getElementById("resetBtn");
-const statsEl=document.getElementById("stats");
-const quads=[document.getElementById('q0'),document.getElementById('q1'),document.getElementById('q1b'),document.getElementById('q3')];
+  let palette;
+  if(index===0){ // Grasslands
+    palette = {top:'#4caf34',mid:'#3b2a16',accent:'#2f6f1f'};
+  }else if(index===1){ // Stone Hills
+    palette = {top:'#9ea7b8',mid:'#6c7484',accent:'#4b5260'};
+  }else if(index===2){ // Desert
+    palette = {top:'#f2d28b',mid:'#d1b06a',accent:'#b8944f'};
+  }else{ // Snow Peaks
+    palette = {top:'#f5f7ff',mid:'#cfd6e8',accent:'#a9b3cc'};
+  }
 
-let save=JSON.parse(localStorage.getItem("toothQuest"))||{totalMinutes:0,streak:0,lastDate:null};
+  for(let y=0;y<rows;y++){
+    for(let x=0;x<cols;x++){
+      const px = x*blockSize;
+      const py = y*blockSize;
+      const r = Math.random();
+      let color = palette.mid;
+      if(y===0) color = palette.top;
+      else if(r<0.15) color = palette.accent;
+      bctx.fillStyle = color;
+      bctx.fillRect(px,py,blockSize,blockSize);
+      bctx.fillStyle = 'rgba(0,0,0,0.25)';
+      bctx.fillRect(px,py+blockSize-3,blockSize,3);
+    }
+  }
+}
+resizeBiomeCanvases();
+
+// ===== Timer / Game Logic =====
+const totalTime = 120;
+let timeLeft = totalTime;
+let timerInterval = null;
+let running = false;
+
+const timerEl = document.getElementById('timer');
+const xpFillEl = document.getElementById('xpFill');
+const xpPercentEl = document.getElementById('xpPercent');
+const startBtn = document.getElementById('startBtn');
+const resetBtn = document.getElementById('resetBtn');
+const statsEl = document.getElementById('stats');
+const levelBadge = document.getElementById('levelBadge');
+const streakBadge = document.getElementById('streakBadge');
+const minutesBadge = document.getElementById('minutesBadge');
+const xpTicksEl = document.getElementById('xpTicks');
+
+// XP ticks
+(function buildTicks(){
+  const segments = 8;
+  for(let i=1;i<segments;i++){
+    const div = document.createElement('div');
+    div.style.left = (i/segments*100)+'%';
+    xpTicksEl.appendChild(div);
+  }
+})();
+
+// Save data
+let save = JSON.parse(localStorage.getItem('toothQuestElite')) || {
+  totalMinutes:0,
+  streak:0,
+  lastDate:null
+};
+function saveData(){
+  localStorage.setItem('toothQuestElite',JSON.stringify(save));
+}
+function formatTime(t){
+  const m = Math.floor(t/60);
+  const s = t%60;
+  return (m<10?'0':'')+m+":"+(s<10?'0':'')+s;
+}
 function updateStats(){
-  const level=Math.floor(save.totalMinutes/10)+1;
-  statsEl.innerHTML="Level: "+level+"<br>Streak: "+save.streak+"<br>Total Minutes: "+save.totalMinutes;
+  const level = Math.floor(save.totalMinutes/10)+1;
+  statsEl.innerHTML =
+    `<div><strong>Level ${level}</strong> · World Builder</div>`+
+    `<div>Total brushing time: <strong>${save.totalMinutes}</strong> minutes</div>`+
+    `<div>Daily streak: <strong>${save.streak}</strong> day${save.streak===1?'':'s'}</div>`;
+  levelBadge.textContent = `Level ${level}`;
+  streakBadge.textContent = `Streak ${save.streak}`;
+  minutesBadge.textContent = `${save.totalMinutes} mins total`;
 }
 updateStats();
-function saveData(){localStorage.setItem("toothQuest",JSON.stringify(save));}
 
-function formatTime(t){let m=Math.floor(t/60),s=t%60;return (m<10?'0':'')+m+":"+(s<10?'0':'')+s;}
+// Simple “bleep” using Web Audio
+let audioCtx = null;
+function playBleep(freq=880,duration=0.08){
+  try{
+    if(!audioCtx) audioCtx = new (window.AudioContext||window.webkitAudioContext)();
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.type = 'square';
+    osc.frequency.value = freq;
+    gain.gain.setValueAtTime(0.12,audioCtx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001,audioCtx.currentTime+duration);
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+    osc.start();
+    osc.stop(audioCtx.currentTime+duration);
+  }catch(e){}
+}
 
+// Game tick
 function gameTick(){
   timeLeft--;
-  if(timeLeft<0){finishQuest();return;}
-  timerEl.textContent=formatTime(timeLeft);
-  xpEl.style.width=((totalTime-timeLeft)/totalTime*100)+'%';
-  let quadIndex=Math.floor((totalTime-timeLeft)/30);
-  quads.forEach(q=>q.classList.remove('active'));
-  if(quadIndex<4) quads[quadIndex].classList.add('active');
-  spawnParticle(Math.random()*canvas.width,canvas.height/2);
+  if(timeLeft<0){
+    finishQuest();
+    return;
+  }
+  timerEl.textContent = formatTime(timeLeft);
+  if(timeLeft<=10){
+    timerEl.classList.add('low');
+  }
+
+  const progress = (totalTime-timeLeft)/totalTime;
+  const percent = Math.round(progress*100);
+  xpFillEl.style.width = (percent)+'%';
+  xpPercentEl.textContent = percent+'%';
+
+  const quadIndex = Math.min(3,Math.floor(progress*4));
+  biomeEls.forEach(b=>b.classList.remove('active'));
+  if(quadIndex>=0 && quadIndex<4){
+    biomeEls[quadIndex].classList.add('active');
+    const rect = biomeEls[quadIndex].getBoundingClientRect();
+    burstParticles(rect.left+rect.width/2,rect.top+rect.height/2,'#7CFC00',10);
+  }
+
+  playBleep(660,0.04);
 }
 
+// Finish
 function finishQuest(){
   clearInterval(timerInterval);
-  running=false;
-  save.totalMinutes+=2;
-  const today=new Date().toDateString();
-  if(save.lastDate!==today){save.streak++; save.lastDate=today;}
-  saveData(); updateStats();
-  quads.forEach(q=>q.classList.remove('active'));
-  startBtn.style.display='none';
-  resetBtn.style.display='block';
-  timerEl.textContent="00:00";
-  for(let i=0;i<80;i++){spawnParticle(canvas.width/2,canvas.height/2);}
+  timerInterval = null;
+  running = false;
+  timeLeft = 0;
+  timerEl.textContent = '00:00';
+  timerEl.classList.remove('low');
+
+  save.totalMinutes += 2;
+  const today = new Date().toDateString();
+  if(save.lastDate !== today){
+    save.streak++;
+    save.lastDate = today;
+  }
+  saveData();
+  updateStats();
+
+  biomeEls.forEach(b=>b.classList.remove('active'));
+  startBtn.style.display = 'none';
+  resetBtn.style.display = 'block';
+  startBtn.disabled = false;
+
+  const rect = canvas.getBoundingClientRect();
+  burstParticles(rect.width/2,rect.height/2,'#7CFC00',120);
   if(navigator.vibrate) navigator.vibrate([200,100,200]);
+  playBleep(880,0.12);
+  setTimeout(()=>playBleep(1320,0.12),90);
 }
 
-startBtn.onclick=()=>{
+// Buttons
+startBtn.addEventListener('click',()=>{
   if(running) return;
-  running=true;
-  timeLeft=totalTime;
-  timerEl.textContent=formatTime(timeLeft);
-  timerInterval=setInterval(gameTick,1000);
-  startBtn.disabled=true;
-  if(navigator.vibrate) navigator.vibrate(100);
-};
+  running = true;
+  timeLeft = totalTime;
+  timerEl.textContent = formatTime(timeLeft);
+  timerEl.classList.remove('low');
+  xpFillEl.style.width = '0%';
+  xpPercentEl.textContent = '0%';
+  biomeEls.forEach(b=>b.classList.remove('active'));
 
-resetBtn.onclick=()=>{
-  running=false; clearInterval(timerInterval); timeLeft=totalTime;
-  xpEl.style.width="0%"; timerEl.textContent=formatTime(timeLeft);
-  startBtn.style.display='block'; resetBtn.style.display='none'; startBtn.disabled=false;
-};
+  timerInterval = setInterval(gameTick,1000);
+  startBtn.disabled = true;
+  resetBtn.style.display = 'none';
 
+  if(navigator.vibrate) navigator.vibrate(80);
+  playBleep(520,0.08);
+});
+resetBtn.addEventListener('click',()=>{
+  running = false;
+  clearInterval(timerInterval);
+  timerInterval = null;
+  timeLeft = totalTime;
+  timerEl.textContent = formatTime(timeLeft);
+  timerEl.classList.remove('low');
+  xpFillEl.style.width = '0%';
+  xpPercentEl.textContent = '0%';
+  biomeEls.forEach(b=>b.classList.remove('active'));
+  startBtn.style.display = 'block';
+  resetBtn.style.display = 'none';
+  startBtn.disabled = false;
+});
+
+// ===== Main Loop =====
 function loop(){
   drawBackground();
   updateParticles();
