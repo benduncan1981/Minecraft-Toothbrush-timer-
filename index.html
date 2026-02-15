@@ -3,164 +3,160 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Oscar's Brushing Adventure</title>
-<meta name="description" content="A Minecraft-style 2-minute toothbrush timer for kids with animated landscapes and rewards.">
+<title>Brushing Adventure — Minecraft Timer</title>
+<meta name="description" content="Minecraft-style two-minute brushing timer for kids with first-person adventure, animations, particles and reward screen.">
 <style>
-:root {
-  --accent: #7CFC00;
-  --hud-bg: rgba(0,0,0,0.6);
-  --panel-radius: 12px;
-  --font-minecraft: "Press Start 2P", monospace;
-}
-@import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
-
-html, body { height: 100%; margin:0; background:#000; font-family: var(--font-minecraft); color:#fff; overflow:hidden; }
-canvas { display:block; width:100vw; height:100vh; image-rendering:pixelated; background:#000; }
-.panel { background: var(--hud-bg); border:2px solid #555; border-radius: var(--panel-radius); padding:6px 10px; display:flex; gap:8px; align-items:center; }
-#hud { position:fixed; top:12px; left:12px; z-index:50; flex-direction:column; gap:10px; }
-#controls { position:fixed; bottom:12px; left:50%; transform:translateX(-50%); z-index:51; gap:6px; display:flex; }
-button { font-family:var(--font-minecraft); font-size:10px; padding:6px 10px; border-radius:6px; border:2px solid #555; background:rgba(0,0,0,0.6); color:#fff; cursor:pointer; }
-button:active { transform:translateY(1px); }
-#timer { font-size:28px; font-weight:700; text-align:center; min-width:80px; }
-#xpBar { width:220px; height:14px; background:#222; border-radius:6px; overflow:hidden; border:2px solid #333; }
-#xpFill { height:100%; width:0%; background:var(--accent); transition: width 0.1s linear; }
-#reward { position:fixed; inset:0; display:none; align-items:center; justify-content:center; flex-direction:column; background:rgba(0,0,0,0.95); color:#fff; z-index:60; font-size:18px; text-align:center; }
-#reward button { margin-top:12px; }
+  @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+  html,body{margin:0;padding:0;width:100%;height:100%;overflow:hidden;background:#000;font-family:'Press Start 2P',monospace;color:#fff;}
+  canvas{display:block;width:100vw;height:100vh;background:#87CEEB;image-rendering:pixelated;}
+  #hud{position:absolute;top:12px;left:50%;transform:translateX(-50%);z-index:50;display:flex;gap:12px;align-items:center;}
+  .panel{background:rgba(0,0,0,0.6);padding:6px 10px;border:2px solid #333;border-radius:8px;display:flex;flex-direction:column;align-items:center;}
+  #timer{font-size:24px;text-align:center;}
+  #controls{position:absolute;bottom:12px;left:50%;transform:translateX(-50%);display:flex;gap:12px;z-index:50;}
+  button{font-family:'Press Start 2P';font-size:12px;padding:8px 12px;background:#222;color:#fff;border:2px solid #444;border-radius:6px;cursor:pointer;}
+  button:active{transform:translateY(1px);}
+  #xpBar{width:260px;height:14px;background:#222;border:2px solid #444;border-radius:6px;overflow:hidden;margin-top:6px;}
+  #xpFill{height:100%;width:0%;background:#7CFC00;transition:width 0.1s linear;}
+  #reward{position:absolute;inset:0;background:rgba(0,0,0,0.9);display:none;flex-direction:column;align-items:center;justify-content:center;z-index:60;}
+  #reward h1{font-size:22px;margin-bottom:8px;}
+  #reward button{margin-top:12px;}
 </style>
 </head>
 <body>
-
-<canvas id="game" aria-label="Brushing Adventure Canvas"></canvas>
+<canvas id="game"></canvas>
 
 <div id="hud">
   <div class="panel">
     <div id="timer">2:00</div>
-  </div>
-  <div class="panel">
-    <div style="font-size:12px;">Progress</div>
     <div id="xpBar"><div id="xpFill"></div></div>
   </div>
 </div>
 
 <div id="controls">
-  <button id="startBtn">Start</button>
-  <button id="pauseBtn" style="display:none">Pause</button>
-  <button id="resetBtn" style="display:none">Reset</button>
+  <button id="startBtn">START</button>
+  <button id="pauseBtn" style="display:none;">PAUSE</button>
+  <button id="resetBtn" style="display:none;">RESET</button>
 </div>
 
 <div id="reward">
-  <div style="font-size:24px; font-weight:700;">🎉 Super Brusher! 🎉</div>
-  <div style="margin-top:6px;">You've brushed for 2 minutes!</div>
-  <button id="restartReward">Play Again</button>
+  <h1>🎉 Achievement Unlocked! 🎉</h1>
+  <div>Super Brusher</div>
+  <button id="rewardRestart">Play Again</button>
 </div>
 
 <script>
-// ----- Canvas setup -----
 const canvas = document.getElementById('game');
-const ctx = canvas.getContext('2d', { alpha: false });
-let DPR = Math.max(1, window.devicePixelRatio || 1);
-function resizeCanvas(){
-  DPR = Math.max(1, window.devicePixelRatio || 1);
-  canvas.width = Math.floor(window.innerWidth * DPR);
-  canvas.height = Math.floor(window.innerHeight * DPR);
-  canvas.style.width = window.innerWidth + 'px';
-  canvas.style.height = window.innerHeight + 'px';
-  ctx.setTransform(DPR,0,0,DPR,0,0);
-  ctx.imageSmoothingEnabled = false;
-}
-window.addEventListener('resize', resizeCanvas);
-resizeCanvas();
+const ctx = canvas.getContext('2d');
+let W = window.innerWidth;
+let H = window.innerHeight;
+canvas.width = W; canvas.height = H;
 
-// ----- Game state -----
 const TOTAL_TIME = 120;
 let elapsed = 0;
 let running = false;
 let lastSecond = -1;
+let particles = [];
 
-// ----- UI references -----
 const timerEl = document.getElementById('timer');
 const xpFill = document.getElementById('xpFill');
 const startBtn = document.getElementById('startBtn');
 const pauseBtn = document.getElementById('pauseBtn');
 const resetBtn = document.getElementById('resetBtn');
 const reward = document.getElementById('reward');
-const restartReward = document.getElementById('restartReward');
+const rewardRestart = document.getElementById('rewardRestart');
 
-let audioCtx=null;
-function ensureAudio(){ if(audioCtx) return audioCtx; const C = window.AudioContext||window.webkitAudioContext; if(!C) return null; audioCtx = new C(); return audioCtx; }
-function beep(){ const a=ensureAudio(); if(!a) return; const now=a.currentTime; const o=a.createOscillator(); const g=a.createGain(); o.type='square'; o.frequency.value=700; g.gain.setValueAtTime(0,now); g.gain.linearRampToValueAtTime(0.08, now+0.005); g.gain.exponentialRampToValueAtTime(0.0001, now+0.08); o.connect(g); g.connect(a.destination); o.start(now); o.stop(now+0.09); }
+let audioCtx = null;
+let beepInterval = null;
+let soundEnabled = true;
 
-// ----- Controls -----
-function startGame(){ 
-  const a=ensureAudio(); if(a&&a.state==='suspended') a.resume();
-  running=true; elapsed=0; lastSecond=-1;
+function ensureAudio(){if(audioCtx)return audioCtx;const C=window.AudioContext||window.webkitAudioContext;if(!C)return null;audioCtx=new C();return audioCtx;}
+function beep(){if(!soundEnabled)return;const a=ensureAudio();if(!a)return;const now=a.currentTime;const o=a.createOscillator();const g=a.createGain();o.type='square';o.frequency.value=700;g.gain.setValueAtTime(0,now);g.gain.linearRampToValueAtTime(0.08,now+0.005);g.gain.exponentialRampToValueAtTime(0.0001,now+0.08);o.connect(g);g.connect(a.destination);o.start(now);o.stop(now+0.09);}
+function chime(){if(!soundEnabled)return;const a=ensureAudio();if(!a)return;const now=a.currentTime;const o1=a.createOscillator();const o2=a.createOscillator();const g=a.createGain();o1.type='sine';o2.type='sine';o1.frequency.value=880;o2.frequency.value=660;g.gain.value=0;o1.connect(g);o2.connect(g);g.connect(a.destination);g.gain.setValueAtTime(0,now);g.gain.linearRampToValueAtTime(0.06,now+0.01);g.gain.exponentialRampToValueAtTime(0.0001,now+0.6);o1.start(now);o2.start(now+0.02);o1.stop(now+0.6);o2.stop(now+0.6);}
+
+function formatTime(sec){sec=Math.max(0,Math.ceil(sec));const m=Math.floor(sec/60);const s=sec%60;return m+':'+(s<10?'0':'')+s;}
+
+function startGame(){
+  const a = ensureAudio(); if(a && a.state==='suspended')a.resume();
+  running=true; elapsed=0; lastSecond=-1; particles=[];
+  reward.style.display='none';
   startBtn.style.display='none'; pauseBtn.style.display='inline-block'; resetBtn.style.display='inline-block';
-  requestAnimationFrame(loop);
+  if(beepInterval)clearInterval(beepInterval);
+  beepInterval=setInterval(()=>{ if(running)beep(); },1000);
+  if(!animating)requestAnimationFrame(loop);
 }
-function pauseGame(){ running=false; pauseBtn.style.display='none'; startBtn.textContent='Resume'; startBtn.style.display='inline-block'; }
-function resetGame(){ running=false; elapsed=0; lastSecond=-1; timerEl.textContent=formatTime(TOTAL_TIME); xpFill.style.width='0%'; startBtn.textContent='Start'; startBtn.style.display='inline-block'; pauseBtn.style.display='none'; resetBtn.style.display='none'; reward.style.display='none'; }
-startBtn.addEventListener('click',()=>{ startGame(); });
-pauseBtn.addEventListener('click',()=>{ pauseGame(); });
-resetBtn.addEventListener('click',()=>{ resetGame(); });
-restartReward.addEventListener('click',()=>{ resetGame(); startGame(); });
+function pauseGame(){running=false;pauseBtn.style.display='none';startBtn.textContent='RESUME';startBtn.style.display='inline-block';}
+function resetGame(){running=false;elapsed=0;xpFill.style.width='0%';timerEl.textContent=formatTime(TOTAL_TIME);reward.style.display='none';startBtn.textContent='START';startBtn.style.display='inline-block';pauseBtn.style.display='none';resetBtn.style.display='none';if(beepInterval){clearInterval(beepInterval);beepInterval=null;}}
+startBtn.addEventListener('click',()=>{startGame();});
+pauseBtn.addEventListener('click',()=>{pauseGame();});
+resetBtn.addEventListener('click',()=>{resetGame();});
+rewardRestart.addEventListener('click',()=>{resetGame();startGame();});
 
-// ----- Helpers -----
-function formatTime(sec){ sec=Math.max(0, Math.ceil(sec)); const m=Math.floor(sec/60); const s=sec%60; return m+':' + (s<10?'0':'') + s; }
-
-// ----- Simple landscape rendering -----
 function drawLandscape(){
-  const W=canvas.width/DPR;
-  const H=canvas.height/DPR;
+  ctx.clearRect(0,0,W,H);
   // sky
   ctx.fillStyle='#87CEEB';
-  ctx.fillRect(0,0,W,H*0.4);
-  // sun
-  ctx.fillStyle='#FFD700'; ctx.beginPath(); ctx.arc(W*0.85,H*0.15,20,0,Math.PI*2); ctx.fill();
+  ctx.fillRect(0,0,W,H*0.5);
   // ground
-  ctx.fillStyle='#4CAF50'; ctx.fillRect(0,H*0.4,W,H*0.6);
-  // simple trees
-  for(let i=0;i<5;i++){
-    const x=(i*100+elapsed*10)%W; const y=H*0.4; ctx.fillStyle='#8B4513'; ctx.fillRect(x,y-40,10,40); ctx.fillStyle='#2E7D32'; ctx.beginPath(); ctx.moveTo(x-15,y-40); ctx.lineTo(x+25,y-40); ctx.lineTo(x+5,y-70); ctx.closePath(); ctx.fill();
-  }
-  // flowers
-  for(let i=0;i<10;i++){
-    const x=(i*60+elapsed*15)%W; const y=H*0.4+Math.random()*100; ctx.fillStyle=['#FF0000','#FF69B4','#FFFF00'][i%3]; ctx.fillRect(x,y,4,4);
-  }
+  ctx.fillStyle='#228B22';
+  ctx.fillRect(0,H*0.5,W,H*0.5);
+  // sun
+  ctx.fillStyle='yellow'; ctx.beginPath(); ctx.arc(W*0.85,50,30,0,Math.PI*2);ctx.fill();
+  // clouds
+  ctx.fillStyle='white'; ctx.fillRect(50,50,60,20); ctx.fillRect(120,70,80,25);
+  // simple tree
+  ctx.fillStyle='#8B4513'; ctx.fillRect(150,H*0.5-60,20,60);
+  ctx.fillStyle='#2E8B57'; ctx.fillRect(130,H*0.5-90,60,30);
 }
 
-// ----- Update -----
-let lastTime=performance.now();
 function update(dt){
-  if(!running) return;
+  if(!running)return;
   elapsed+=dt;
   const sec=Math.floor(elapsed);
   if(sec!==lastSecond){
     lastSecond=sec;
-    beep();
-    // flash last 10 seconds
-    if(TOTAL_TIME-sec<=10){
-      timerEl.style.color=(sec%2===0?'#FF0000':'#fff');
-    } else timerEl.style.color='#fff';
-    timerEl.textContent=formatTime(TOTAL_TIME-sec);
-    const progress=Math.min(1, elapsed/TOTAL_TIME);
+    const progress=Math.min(1,elapsed/TOTAL_TIME);
     xpFill.style.width=(progress*100)+'%';
   }
-  if(elapsed>=TOTAL_TIME){ running=false; showReward(); }
+  const remain=Math.max(0,TOTAL_TIME-Math.floor(elapsed));
+  timerEl.textContent=formatTime(remain);
+  if(remain<=10){
+    timerEl.style.color=(sec%2===0?'#FF0000':'#fff');
+  }else{timerEl.style.color='#fff';}
+  if(elapsed>=TOTAL_TIME){running=false;if(beepInterval){clearInterval(beepInterval);beepInterval=null;}showReward();}
 }
 
-// ----- Reward -----
-function showReward(){ reward.style.display='flex'; }
+function showReward(){
+  chime();
+  reward.style.display='flex';
+  // confetti
+  for(let i=0;i<200;i++){
+    particles.push({x:Math.random()*W,y:Math.random()*-H,vx:(Math.random()-0.5)*5,vy:Math.random()*5+2,life:200,color:`hsl(${Math.random()*360},100%,60%)`});
+  }
+}
 
-// ----- Render -----
-function draw(){ ctx.clearRect(0,0,canvas.width/DPR,canvas.height/DPR); drawLandscape(); }
-
+let lastTime=performance.now();
+let animating=false;
 function loop(now){
+  animating=true;
   const dt=Math.min(0.05,(now-lastTime)/1000);
   lastTime=now;
   update(dt);
-  draw();
-  if(running) requestAnimationFrame(loop);
+  drawLandscape();
+  // particles
+  for(let p of particles){
+    ctx.fillStyle=p.color;
+    ctx.fillRect(p.x,p.y,4,4);
+    p.x+=p.vx; p.y+=p.vy; p.life--;
+  }
+  particles=particles.filter(p=>p.life>0);
+  if(running||particles.length>0)requestAnimationFrame(loop);
+  else animating=false;
 }
+
+requestAnimationFrame(loop);
+
+window.addEventListener('resize',()=>{W=window.innerWidth;H=window.innerHeight;canvas.width=W;canvas.height=H;});
+
 </script>
 </body>
 </html>
