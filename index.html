@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Oscar's Toothbrushing Quest</title>
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+<style>
+:root{
+  --grass:#5fbf3f;
+  --dirt:#7a4b1f;
+  --stone:#9ea7ad;
+  --diamond:#4de3ff;
+  --dark:#111;
+  --xp:#7CFC00;
+}
+
+*{
+  box-sizing:border-box;
+  -webkit-tap-highlight-color: transparent;
+}
+
+body{
+  margin:0;
+  font-family:'Press Start 2P', monospace;
+  background:linear-gradient(#87ceeb 40%, var(--grass) 40%);
+  color:white;
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  height:100vh;
+  overflow:hidden;
+}
+
+.container{
+  text-align:center;
+  width:90%;
+  max-width:500px;
+}
+
+h1{
+  font-size:16px;
+  margin-bottom:20px;
+  text-shadow:3px 3px 0px black;
+}
+
+.timer{
+  font-size:40px;
+  margin:20px 0;
+  text-shadow:4px 4px 0px black;
+}
+
+.zone{
+  margin:10px 0;
+  font-size:12px;
+  color:var(--diamond);
+}
+
+button{
+  font-family:'Press Start 2P', monospace;
+  background:var(--dirt);
+  border:4px solid black;
+  padding:15px;
+  color:white;
+  width:100%;
+  font-size:12px;
+  margin-top:20px;
+}
+
+button:active{
+  transform:scale(0.95);
+}
+
+.xp-bar{
+  width:100%;
+  height:20px;
+  background:#333;
+  border:3px solid black;
+  margin-top:20px;
+  position:relative;
+}
+
+.xp-fill{
+  height:100%;
+  width:0%;
+  background:var(--xp);
+  transition:width 0.5s linear;
+}
+
+.achievement{
+  position:absolute;
+  top:20%;
+  left:50%;
+  transform:translateX(-50%);
+  background:black;
+  border:4px solid var(--diamond);
+  padding:20px;
+  display:none;
+  animation:pop 0.5s ease-out forwards;
+}
+
+@keyframes pop{
+  from{transform:translateX(-50%) scale(0.5);}
+  to{transform:translateX(-50%) scale(1);}
+}
+
+.sparkle{
+  position:absolute;
+  width:5px;
+  height:5px;
+  background:white;
+  animation:fall 2s linear forwards;
+}
+
+@keyframes fall{
+  to{transform:translateY(100vh);opacity:0;}
+}
+
+.warning{
+  animation:flash 0.5s infinite;
+}
+
+@keyframes flash{
+  0%,100%{background:linear-gradient(#87ceeb 40%, var(--grass) 40%);}
+  50%{background:red;}
+}
+</style>
+</head>
+<body>
+
+<div class="container">
+  <h1>Oscar's Brushing Quest</h1>
+  <div class="timer" id="timer">02:00</div>
+  <div class="zone" id="zone">Ready to begin!</div>
+  <button id="startBtn">START QUEST</button>
+  <div class="xp-bar">
+    <div class="xp-fill" id="xp"></div>
+  </div>
+</div>
+
+<div class="achievement" id="achievement">
+  ACHIEVEMENT UNLOCKED<br><br>
+  SUPER CLEAN TEETH<br><br>
+  Oscar Levelled Up!
+</div>
+
+<script>
+let totalTime = 120;
+let timeLeft = totalTime;
+let interval;
+const timerDisplay = document.getElementById("timer");
+const zoneDisplay = document.getElementById("zone");
+const xpFill = document.getElementById("xp");
+const achievement = document.getElementById("achievement");
+const startBtn = document.getElementById("startBtn");
+
+const zones = [
+  "Top Left Biome",
+  "Top Right Biome",
+  "Bottom Left Biome",
+  "Bottom Right Biome"
+];
+
+function updateDisplay(){
+  let minutes = Math.floor(timeLeft/60);
+  let seconds = timeLeft%60;
+  timerDisplay.textContent =
+    (minutes<10?"0":"")+minutes+":"+(seconds<10?"0":"")+seconds;
+
+  let progress = ((totalTime-timeLeft)/totalTime)*100;
+  xpFill.style.width = progress + "%";
+
+  let zoneIndex = Math.floor((totalTime-timeLeft)/30);
+  if(zoneIndex < 4){
+    zoneDisplay.textContent = zones[zoneIndex];
+  }
+
+  if(timeLeft === 10){
+    document.body.classList.add("warning");
+  }
+}
+
+function createSparkle(){
+  const sparkle = document.createElement("div");
+  sparkle.className = "sparkle";
+  sparkle.style.left = Math.random()*100 + "vw";
+  sparkle.style.top = "0px";
+  document.body.appendChild(sparkle);
+  setTimeout(()=>sparkle.remove(),2000);
+}
+
+function finish(){
+  clearInterval(interval);
+  zoneDisplay.textContent = "Quest Complete!";
+  achievement.style.display="block";
+  if(navigator.vibrate) navigator.vibrate([200,100,200]);
+  document.body.classList.remove("warning");
+}
+
+function startTimer(){
+  startBtn.disabled=true;
+  zoneDisplay.textContent = zones[0];
+  if(navigator.vibrate) navigator.vibrate(100);
+
+  interval = setInterval(()=>{
+    timeLeft--;
+    updateDisplay();
+    createSparkle();
+    if(timeLeft<=0){
+      finish();
+    }
+  },1000);
+}
+
+startBtn.addEventListener("click", startTimer);
+</script>
+
+</body>
+</html>
