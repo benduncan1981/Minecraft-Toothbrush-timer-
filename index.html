@@ -1,557 +1,211 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Brushing Adventure — First Person Timer</title>
-<meta name="description" content="A first-person, Minecraft-flavored brushing timer with hand/brush animation, particles, audio, and achievements.">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Minecraft Tooth Adventure</title>
 <style>
-  :root{
-    --accent:#7CFC00;
-    --hud-bg:rgba(0,0,0,0.5);
-    --muted:#cfcfcf;
-    --panel-radius:10px;
-  }
-  html,body{ height:100%; margin:0; background:#000; font-family:ui-monospace,monospace,system-ui; -webkit-font-smoothing:antialiased; color:#fff; }
-  canvas{ display:block; width:100vw; height:100vh; image-rendering:pixelated; background:#000; }
-  /* HUD */
-  #hud{ position:fixed; left:12px; top:12px; z-index:40; display:flex; gap:10px; align-items:center; pointer-events:none; }
-  .panel{ background:var(--hud-bg); color:#fff; padding:8px 10px; border-radius:var(--panel-radius); display:flex; gap:8px; align-items:center; pointer-events:auto; }
-  #controls{ position:fixed; left:50%; transform:translateX(-50%); top:12px; z-index:41; pointer-events:auto; }
-  button{ font:inherit; padding:8px 12px; border-radius:8px; border:1px solid rgba(255,255,255,0.06); background:rgba(0,0,0,0.6); color:#fff; cursor:pointer; }
-  button:active{ transform:translateY(1px); }
-  #xpBar{ width:260px; height:14px; background:#222; border-radius:6px; overflow:hidden; border:2px solid #333; }
-  #xpFill{ height:100%; width:0%; background:var(--accent); transition:width 0.12s linear; }
-  #timer{ font-weight:700; min-width:72px; text-align:center; }
-  #crosshair{ position:fixed; left:50%; top:50%; transform:translate(-50%,-50%); width:44px; height:44px; z-index:39; pointer-events:none; opacity:0.95; }
-  #reward{ position:fixed; inset:0; display:none; align-items:center; justify-content:center; flex-direction:column; background:rgba(0,0,0,0.92); color:#fff; z-index:60; font-size:22px; }
-  #stats{ margin-top:12px; font-size:14px; color:var(--muted); }
-  #hand{ position:fixed; left:50%; transform:translateX(-50%); bottom:6vh; z-index:45; pointer-events:none; width:220px; height:160px; image-rendering:pixelated; }
-  #settings{ position:fixed; right:12px; top:12px; z-index:41; pointer-events:auto; }
-  label{ font-size:13px; color:#ddd; display:flex; gap:8px; align-items:center; }
-  input[type="range"]{ width:120px; }
-  #footer{ position:fixed; left:12px; bottom:12px; color:#ddd; font-size:12px; z-index:41; }
-  /* Accessibility: reduced motion */
-  @media (prefers-reduced-motion: reduce){
-    *{ transition:none !important; animation:none !important; }
-  }
-  /* Small screens */
-  @media (max-width:520px){
-    #xpBar{ width:160px; }
-    #hand{ width:160px; height:120px; bottom:4vh; }
-  }
+html,body{
+margin:0;
+padding:0;
+background:#000;
+overflow:hidden;
+font-family:monospace;
+touch-action:none;
+}
+canvas{
+display:block;
+}
+#startScreen,#rewardScreen{
+position:absolute;
+inset:0;
+display:flex;
+align-items:center;
+justify-content:center;
+flex-direction:column;
+background:#000;
+color:white;
+text-align:center;
+}
+button{
+padding:14px 24px;
+font-size:18px;
+border:none;
+background:#4CAF50;
+color:white;
+border-radius:6px;
+}
+#hud{
+position:absolute;
+top:10px;
+left:10px;
+right:10px;
+color:white;
+font-size:14px;
+display:flex;
+justify-content:space-between;
+pointer-events:none;
+}
+#progressBar{
+position:absolute;
+bottom:0;
+left:0;
+height:8px;
+background:#00ff66;
+width:0%;
+}
 </style>
 </head>
 <body>
 
-<canvas id="game" aria-label="Brushing Adventure canvas"></canvas>
+<canvas id="game"></canvas>
 
-<div id="hud" role="region" aria-label="Game heads up display">
-  <div class="panel" aria-hidden="false">
-    <div style="font-size:12px; opacity:0.9;">XP</div>
-    <div id="xpBar" aria-hidden="false"><div id="xpFill" aria-hidden="true"></div></div>
-  </div>
-  <div class="panel" id="timePanel" aria-live="polite">
-    <div style="font-size:12px; opacity:0.9;">Time</div>
-    <div id="timer" role="timer" aria-atomic="true">2:00</div>
-  </div>
+<div id="startScreen">
+<h2>Minecraft Tooth Adventure</h2>
+<p>Brush to walk through the biomes!</p>
+<button onclick="startGame()">Start</button>
 </div>
 
-<div id="controls" role="toolbar" aria-label="Game controls">
-  <div class="panel">
-    <button id="startBtn" aria-pressed="false">Start</button>
-    <button id="pauseBtn" style="display:none">Pause</button>
-    <button id="restartBtn" style="display:none">Restart</button>
-    <button id="muteBtn">Sound: On</button>
-  </div>
+<div id="rewardScreen" style="display:none;">
+<h2>You Completed The Adventure!</h2>
+<p>Super Brusher!</p>
 </div>
 
-<div id="settings" class="panel" aria-label="Settings">
-  <label>Volume <input id="vol" type="range" min="0" max="1" step="0.05" value="0.9"></label>
-  <label>Brush Speed <input id="brushSpeed" type="range" min="0.4" max="2.0" step="0.05" value="1.0"></label>
+<div id="hud" style="display:none;">
+<div id="timer">2:00</div>
+<div id="biomeLabel">Plains</div>
 </div>
-
-<div id="crosshair" aria-hidden="true">
-  <svg width="44" height="44" viewBox="0 0 44 44">
-    <rect x="21" y="6" width="2" height="10" fill="rgba(255,255,255,0.95)"/>
-    <rect x="6" y="21" width="10" height="2" fill="rgba(255,255,255,0.95)"/>
-  </svg>
-</div>
-
-<img id="hand" alt="" src="" />
-
-<div id="reward" role="dialog" aria-modal="true" aria-label="Achievement">
-  <div style="text-align:center;">
-    <div style="font-size:28px; font-weight:700;">Achievement Unlocked</div>
-    <div style="font-size:20px; margin-top:6px;">Super Brusher</div>
-    <div id="stats"></div>
-    <div style="margin-top:12px;">
-      <button id="rewardRestart">Play Again</button>
-      <button id="closeReward" style="margin-left:8px;">Close</button>
-    </div>
-  </div>
-</div>
-
-<div id="footer">Tap Start to enable audio in Safari. Use keyboard: Space to Start/Pause, R to Restart.</div>
+<div id="progressBar"></div>
 
 <script>
-/* =========================
-   Brushing Adventure Game
-   Single-file, Safari-friendly
-   ========================= */
+const canvas = document.getElementById("game");
+const ctx = canvas.getContext("2d");
+canvas.width = innerWidth;
+canvas.height = innerHeight;
 
-/* ---------- Canvas setup ---------- */
-const canvas = document.getElementById('game');
-const ctx = canvas.getContext('2d', { alpha: false });
-let DPR = Math.max(1, window.devicePixelRatio || 1);
-function resizeCanvas(){
-  DPR = Math.max(1, window.devicePixelRatio || 1);
-  canvas.width = Math.floor(window.innerWidth * DPR);
-  canvas.height = Math.floor(window.innerHeight * DPR);
-  canvas.style.width = window.innerWidth + 'px';
-  canvas.style.height = window.innerHeight + 'px';
-  ctx.setTransform(DPR,0,0,DPR,0,0);
-  ctx.imageSmoothingEnabled = false;
-}
-window.addEventListener('resize', resizeCanvas);
-resizeCanvas();
+let running=false;
+let timeLeft=120;
+let distance=0;
+let biomeIndex=0;
 
-/* ---------- Pixel atlas (in-memory) ---------- */
-const atlas = document.createElement('canvas');
-atlas.width = 128; atlas.height = 128;
-const actx = atlas.getContext('2d');
-actx.imageSmoothingEnabled = false;
-function pixelRect(x,y,w,h,c){ actx.fillStyle=c; actx.fillRect(x,y,w,h); }
-function createAtlas(){
-  // grass
-  pixelRect(0,0,16,16,'#4CAF50');
-  for(let i=0;i<20;i++) pixelRect(Math.floor(Math.random()*16),Math.floor(Math.random()*16),1,1,'#388E3C');
-  // dirt
-  pixelRect(16,0,16,16,'#8B4513');
-  for(let i=0;i<20;i++) pixelRect(16+Math.floor(Math.random()*16),Math.floor(Math.random()*16),1,1,'#5D3311');
-  // sand
-  pixelRect(32,0,16,16,'#C2B280');
-  for(let i=0;i<15;i++) pixelRect(32+Math.floor(Math.random()*16),Math.floor(Math.random()*16),1,1,'#A8956B');
-  // leaves
-  pixelRect(48,0,16,16,'#2E7D32');
-  for(let i=0;i<25;i++) pixelRect(48+Math.floor(Math.random()*16),Math.floor(Math.random()*16),1,1,'#1B5E20');
-  // log
-  pixelRect(64,0,16,16,'#A0522D');
-  for(let i=0;i<10;i++) pixelRect(64+Math.floor(Math.random()*16),Math.floor(Math.random()*16),1,1,'#6D3A16');
-  // obsidian
-  pixelRect(80,0,16,16,'#2E003E');
-  for(let i=0;i<10;i++) pixelRect(80+Math.floor(Math.random()*16),Math.floor(Math.random()*16),1,1,'#550055');
-  // portal
-  pixelRect(96,0,16,16,'#4B0082');
-  // enderman
-  pixelRect(112,0,16,16,'black');
-  pixelRect(116,6,8,2,'#ff55ff');
-}
-createAtlas();
+const BIOMES=[
+{name:"Plains", grass:"#5fbf4f", dirt:"#8b5a2b", sky:"#87CEEB"},
+{name:"Desert", grass:"#e5d67d", dirt:"#c2b280", sky:"#f4e2a1"},
+{name:"Snow", grass:"#ffffff", dirt:"#cccccc", sky:"#dff3ff"},
+{name:"Nether", grass:"#4a0000", dirt:"#330000", sky:"#2b0000"}
+];
 
-/* ---------- Game constants & state ---------- */
-const TOTAL_TIME = 120; // seconds
-let elapsed = 0;
-let running = false;
-let lastSecond = -1;
-let cameraX = 0;
-let particles = [];
-let audioCtx = null;
-let beepInterval = null;
-let soundEnabled = true;
-let volume = 0.9;
-let brushSpeed = 1.0;
-
-/* Stats */
-let stats = {
-  particlesSpawned: 0,
-  portalsSeen: 0,
-  brushCycles: 0,
-  sessions: 0
-};
-
-/* UI refs */
-const xpFill = document.getElementById('xpFill');
-const timerEl = document.getElementById('timer');
-const startBtn = document.getElementById('startBtn');
-const pauseBtn = document.getElementById('pauseBtn');
-const restartBtn = document.getElementById('restartBtn');
-const muteBtn = document.getElementById('muteBtn');
-const volSlider = document.getElementById('vol');
-const brushSpeedSlider = document.getElementById('brushSpeed');
-const handImg = document.getElementById('hand');
-const reward = document.getElementById('reward');
-const statsEl = document.getElementById('stats');
-const rewardRestart = document.getElementById('rewardRestart');
-const closeReward = document.getElementById('closeReward');
-
-/* ---------- Audio helpers (Safari-friendly) ---------- */
-function ensureAudio(){
-  if(audioCtx) return audioCtx;
-  const C = window.AudioContext || window.webkitAudioContext;
-  if(!C) return null;
-  audioCtx = new C();
-  return audioCtx;
-}
-function beep(){
-  if(!soundEnabled) return;
-  const a = ensureAudio();
-  if(!a) return;
-  const now = a.currentTime;
-  const o = a.createOscillator();
-  const g = a.createGain();
-  o.type = 'square';
-  o.frequency.value = 700;
-  g.gain.value = 0;
-  o.connect(g); g.connect(a.destination);
-  g.gain.setValueAtTime(0, now);
-  g.gain.linearRampToValueAtTime(volume * 0.08, now + 0.005);
-  g.gain.exponentialRampToValueAtTime(0.0001, now + 0.08);
-  o.start(now); o.stop(now + 0.09);
-}
-/* small chime for achievement */
-function chime(){
-  if(!soundEnabled) return;
-  const a = ensureAudio();
-  if(!a) return;
-  const now = a.currentTime;
-  const o1 = a.createOscillator();
-  const o2 = a.createOscillator();
-  const g = a.createGain();
-  o1.type = 'sine'; o2.type = 'sine';
-  o1.frequency.value = 880; o2.frequency.value = 660;
-  g.gain.value = 0;
-  o1.connect(g); o2.connect(g); g.connect(a.destination);
-  g.gain.setValueAtTime(0, now);
-  g.gain.linearRampToValueAtTime(volume * 0.06, now + 0.01);
-  g.gain.exponentialRampToValueAtTime(0.0001, now + 0.6);
-  o1.start(now); o2.start(now + 0.02);
-  o1.stop(now + 0.6); o2.stop(now + 0.6);
-}
-
-/* ---------- Particles ---------- */
-function spawnParticles(x,y,count=28,color='#ff55ff'){
-  for(let i=0;i<count;i++){
-    particles.push({
-      x, y,
-      vx: (Math.random()-0.5)*3,
-      vy: (Math.random()-0.5)*3 - 0.6,
-      life: 40 + Math.floor(Math.random()*40),
-      size: 2 + Math.random()*3,
-      color
-    });
-  }
-  stats.particlesSpawned += count;
-}
-
-/* ---------- Hand / brush sprite generation ---------- */
-function makeHandSprite(){
-  const c = document.createElement('canvas');
-  c.width = 96; c.height = 72;
-  const g = c.getContext('2d');
-  g.imageSmoothingEnabled = false;
-  // transparent background
-  // brush handle
-  g.fillStyle = '#C2A476';
-  g.fillRect(44,44,36,8);
-  g.fillStyle = '#8B5A2B';
-  g.fillRect(44,38,8,12);
-  // bristles
-  g.fillStyle = '#fff';
-  g.fillRect(52,34,28,8);
-  // hand
-  g.fillStyle = '#F1C27D';
-  g.fillRect(6,38,34,12);
-  g.fillRect(12,30,10,10);
-  // shading
-  g.fillStyle = 'rgba(0,0,0,0.06)';
-  g.fillRect(6,48,34,3);
-  return c.toDataURL();
-}
-handImg.src = makeHandSprite();
-
-/* ---------- Controls ---------- */
 function startGame(){
-  const a = ensureAudio();
-  if(a && a.state === 'suspended') a.resume();
-  running = true;
-  elapsed = 0;
-  lastSecond = -1;
-  cameraX = 0;
-  particles = [];
-  stats.sessions += 1;
-  reward.style.display = 'none';
-  startBtn.style.display = 'none';
-  pauseBtn.style.display = 'inline-block';
-  restartBtn.style.display = 'inline-block';
-  if(beepInterval) clearInterval(beepInterval);
-  beepInterval = setInterval(()=>{ if(running) beep(); }, 1000);
-  if(!animating) requestAnimationFrame(loop);
+document.getElementById("startScreen").style.display="none";
+document.getElementById("hud").style.display="flex";
+running=true;
+requestAnimationFrame(loop);
+setInterval(()=>{
+if(!running) return;
+timeLeft--;
+if(timeLeft<=0){
+running=false;
+document.getElementById("rewardScreen").style.display="flex";
 }
-function pauseGame(){
-  running = false;
-  pauseBtn.style.display = 'none';
-  startBtn.textContent = 'Resume';
-  startBtn.style.display = 'inline-block';
-}
-function restartGame(){
-  running = false;
-  elapsed = 0;
-  xpFill.style.width = '0%';
-  timerEl.textContent = formatTime(TOTAL_TIME);
-  reward.style.display = 'none';
-  startBtn.textContent = 'Start';
-  startBtn.style.display = 'inline-block';
-  pauseBtn.style.display = 'none';
-  restartBtn.style.display = 'none';
-  if(beepInterval){ clearInterval(beepInterval); beepInterval = null; }
-}
-startBtn.addEventListener('click', ()=>{ startGame(); });
-pauseBtn.addEventListener('click', ()=>{ pauseGame(); });
-restartBtn.addEventListener('click', ()=>{ restartGame(); });
-muteBtn.addEventListener('click', ()=>{
-  soundEnabled = !soundEnabled;
-  muteBtn.textContent = 'Sound: ' + (soundEnabled ? 'On' : 'Off');
-});
-volSlider.addEventListener('input', (e)=>{ volume = parseFloat(e.target.value); });
-brushSpeedSlider.addEventListener('input', (e)=>{ brushSpeed = parseFloat(e.target.value); });
-
-rewardRestart.addEventListener('click', ()=>{
-  restartGame();
-  startGame();
-});
-closeReward.addEventListener('click', ()=>{
-  reward.style.display = 'none';
-});
-
-/* keyboard shortcuts */
-window.addEventListener('keydown', (e)=>{
-  if(e.code === 'Space'){ e.preventDefault(); if(running) pauseGame(); else startGame(); }
-  if(e.key.toLowerCase() === 'r'){ restartGame(); }
-});
-
-/* ---------- Helpers ---------- */
-function formatTime(sec){
-  sec = Math.max(0, Math.ceil(sec));
-  const m = Math.floor(sec/60);
-  const s = sec%60;
-  return m + ':' + (s<10?'0':'') + s;
+},1000);
 }
 
-/* ---------- First-person renderer ---------- */
-function drawFirstPerson(){
-  const W = canvas.width / DPR;
-  const H = canvas.height / DPR;
-  const section = TOTAL_TIME / 4;
-  const biomeIndex = Math.min(3, Math.floor(elapsed / section));
-  const skyColors = ['#87CEEB','#6FAF6F','#F4D03F','#1A001F'];
-  const sky = skyColors[biomeIndex] || '#87CEEB';
-  const horizon = H * 0.42;
-  // sky
-  ctx.fillStyle = sky;
-  ctx.fillRect(0,0,W,horizon);
-  // gradient
-  const g = ctx.createLinearGradient(0,horizon,0,H);
-  g.addColorStop(0, 'rgba(0,0,0,0)');
-  g.addColorStop(1, 'rgba(0,0,0,0.18)');
-  ctx.fillStyle = g;
-  ctx.fillRect(0,horizon,W,H - horizon);
+function drawSky(b){
+ctx.fillStyle=b.sky;
+ctx.fillRect(0,0,canvas.width,canvas.height);
 
-  // floor rows
-  const rows = Math.min(160, Math.floor(H/2));
-  for(let i=0;i<rows;i++){
-    const t = i / rows;
-    const y = horizon + t * (H - horizon);
-    const depth = 0.25 + t * 2.2;
-    const rowH = Math.max(1, Math.floor((1/depth) * 12));
-    const scale = (1/depth) * 1.6;
-    let sx = 0;
-    if(biomeIndex === 2) sx = 32; else if(biomeIndex === 3) sx = 80; else sx = 0;
-    const tileW = 16 * scale;
-    const sway = Math.sin((elapsed*0.6) + (i*0.02)) * (18 * (1 - t));
-    for(let x = -tileW*2; x < W + tileW*2; x += tileW){
-      const dx = Math.floor(x + (cameraX * (1 - t) * 0.28) + sway);
-      ctx.drawImage(atlas, sx, 0, 16, 16, dx, y, tileW, rowH);
-      if(t > 0.6){
-        ctx.drawImage(atlas, 16, 0, 16, 16, dx, y + rowH, tileW, Math.max(1, rowH*0.6));
-      }
-    }
-  }
-
-  // billboards (trees / endermen)
-  const count = 6;
-  for(let i=0;i<count;i++){
-    const depthPos = 0.2 + (i / count) * 0.8;
-    const screenY = horizon + depthPos * (H - horizon);
-    const scale = (1 / (0.25 + depthPos * 2.2)) * 2.2;
-    const spriteW = 16 * scale;
-    const spriteH = 32 * scale;
-    if(biomeIndex === 0 || biomeIndex === 1){
-      const sx = (i*137 + Math.floor(cameraX*0.2)) % (W + 200) - 100;
-      ctx.drawImage(atlas, 64, 0, 16, 16, sx, screenY - spriteH, spriteW, spriteH*0.5);
-      ctx.drawImage(atlas, 48, 0, 16, 16, sx - spriteW*0.6, screenY - spriteH - spriteH*0.4, spriteW*2, spriteH*0.9);
-    } else if(biomeIndex === 3){
-      const sx = (i*200 + Math.floor(cameraX*0.25)) % (W + 300) - 150;
-      ctx.drawImage(atlas, 112, 0, 16, 16, sx, screenY - spriteH, spriteW, spriteH);
-    }
-  }
-
-  // portal event
-  const tInSection = elapsed % section;
-  if(tInSection > (section - 8) && tInSection < (section - 3) && biomeIndex < 3){
-    const centerY = horizon + 0.45 * (H - horizon);
-    const pscale = 16 * (1.2 + Math.sin(elapsed*8)*0.05);
-    ctx.drawImage(atlas, 96, 0, 16, 16, W/2 - pscale/2, centerY - pscale, pscale, pscale*2);
-    if(Math.floor(elapsed*10) % 12 === 0){
-      spawnParticles(W/2, centerY, 18, '#ff55ff');
-      stats.portalsSeen += 1;
-    }
-  }
-
-  // particles
-  for(let p of particles){
-    ctx.fillStyle = p.color;
-    ctx.fillRect(p.x - p.size/2, p.y - p.size/2, p.size, p.size);
-  }
-
-  // vignette
-  const vign = ctx.createRadialGradient(W/2, H/2, Math.max(W,H)*0.2, W/2, H/2, Math.max(W,H)*0.8);
-  vign.addColorStop(0, 'rgba(0,0,0,0)');
-  vign.addColorStop(1, 'rgba(0,0,0,0.25)');
-  ctx.fillStyle = vign;
-  ctx.fillRect(0,0,W,H);
+ctx.fillStyle="white";
+for(let i=0;i<5;i++){
+ctx.fillRect((i*300+distance*0.2)%canvas.width,100,80,20);
 }
 
-/* ---------- Brush animation ---------- */
-let brushPhase = 0;
-function drawHand(dt){
-  // brushPhase cycles with brushSpeed; dt in seconds
-  brushPhase += dt * 2.0 * brushSpeed;
-  const sway = Math.sin(brushPhase) * 8;
-  const bob = Math.sin(brushPhase*1.5) * 6;
-  const handW = canvas.width / DPR * 0.22;
-  const handH = handW * 0.72;
-  // draw the hand image at bottom center with transform
-  const x = (canvas.width / DPR) / 2 - handW/2 + sway;
-  const y = (canvas.height / DPR) - handH - (canvas.height / DPR) * 0.06 + bob;
-  // draw with slight rotation
-  ctx.save();
-  ctx.translate(x + handW/2, y + handH/2);
-  ctx.rotate(Math.sin(brushPhase*0.6) * 0.06);
-  ctx.drawImage(handImg, -handW/2, -handH/2, handW, handH);
-  ctx.restore();
-
-  // spawn small particles near center when brush crosses center
-  const cycle = Math.abs(Math.sin(brushPhase));
-  if(cycle > 0.98 && running && Math.random() < 0.6){
-    spawnParticles((canvas.width/DPR)/2 + (Math.random()-0.5)*20, (canvas.height/DPR)/2 + (Math.random()-0.5)*20, 6, '#fff');
-    stats.brushCycles += 1;
-  }
+ctx.fillStyle="#FFD700";
+ctx.fillRect(canvas.width-120,60,40,40);
 }
 
-/* ---------- Update loop ---------- */
-let lastTime = performance.now();
-let animating = false;
-function update(dt){
-  if(!running) return;
-  elapsed += dt;
-  cameraX += dt * 40;
-  const sec = Math.floor(elapsed);
-  if(sec !== lastSecond){
-    lastSecond = sec;
-    // update XP
-    const progress = Math.min(1, elapsed / TOTAL_TIME);
-    xpFill.style.width = (progress*100) + '%';
-  }
-  const remain = Math.max(0, TOTAL_TIME - Math.floor(elapsed));
-  timerEl.textContent = formatTime(remain);
-  // particles physics
-  for(let p of particles){
-    p.x += p.vx;
-    p.y += p.vy;
-    p.vy += 0.04;
-    p.life--;
-  }
-  particles = particles.filter(p => p.life > 0);
-  // end condition
-  if(elapsed >= TOTAL_TIME){
-    running = false;
-    if(beepInterval){ clearInterval(beepInterval); beepInterval = null; }
-    // show reward and stats
-    showReward();
-  }
+function generateHeight(x){
+return Math.floor(4+Math.sin((x+distance)*0.02)*2);
 }
 
-/* ---------- Render loop ---------- */
-function draw(){
-  ctx.fillStyle = '#000';
-  ctx.fillRect(0,0,canvas.width/DPR,canvas.height/DPR);
-  drawFirstPerson();
-}
-function loop(now){
-  animating = true;
-  const dt = Math.min(0.05, (now - lastTime) / 1000);
-  lastTime = now;
-  update(dt);
-  draw();
-  drawHand(dt);
-  if(running || particles.length > 0) requestAnimationFrame(loop);
-  else animating = false;
-}
+function drawWorld(){
+let b=BIOMES[biomeIndex];
+let horizon=canvas.height*0.5;
 
-/* ---------- Reward / Stats ---------- */
-function showReward(){
-  chime();
-  reward.style.display = 'flex';
-  pauseBtn.style.display = 'none';
-  restartBtn.style.display = 'inline-block';
-  startBtn.style.display = 'none';
-  // populate stats
-  statsEl.innerHTML = `
-    <div>Sessions: ${stats.sessions}</div>
-    <div>Particles spawned: ${stats.particlesSpawned}</div>
-    <div>Portals seen: ${stats.portalsSeen}</div>
-    <div>Brush cycles: ${stats.brushCycles}</div>
-  `;
+for(let z=1;z<60;z++){
+let scale=1/(z*0.1);
+let rowY=horizon+z*8;
+for(let x=0;x<20;x++){
+let worldX=x-10;
+let h=generateHeight(worldX);
+let blockSize=40*scale;
+let screenX=canvas.width/2 + worldX*blockSize*1.5;
+let screenY=rowY - h*blockSize;
+
+ctx.fillStyle=b.dirt;
+ctx.fillRect(screenX,screenY,blockSize,blockSize);
+
+ctx.fillStyle=b.grass;
+ctx.fillRect(screenX,screenY-blockSize,blockSize,blockSize);
+}
+}
 }
 
-/* ---------- Interaction: pointer spawn & audio resume ---------- */
-canvas.addEventListener('pointerdown', (e)=>{
-  const rect = canvas.getBoundingClientRect();
-  const x = e.clientX - rect.left;
-  const y = e.clientY - rect.top;
-  spawnParticles(x, y, 20, '#ff55ff');
-  const a = ensureAudio();
-  if(a && a.state === 'suspended') a.resume();
-});
+function drawTrees(){
+for(let i=0;i<6;i++){
+let z=i*10+20;
+let scale=1/(z*0.1);
+let xPos=(i%3-1)*100;
+let block=40*scale;
+let y=canvas.height*0.6;
 
-/* ---------- Initialize UI ---------- */
-timerEl.textContent = formatTime(TOTAL_TIME);
+ctx.fillStyle="#8b5a2b";
+ctx.fillRect(canvas.width/2+xPos*scale,y,block,block*2);
 
-/* ---------- Clean up ---------- */
-window.addEventListener('pagehide', ()=>{
-  if(beepInterval) clearInterval(beepInterval);
-  if(audioCtx && audioCtx.close) audioCtx.close();
-});
+ctx.fillStyle="#2e8b57";
+ctx.fillRect(canvas.width/2+xPos*scale-block,y-block*2,block*3,block*3);
+}
+}
 
-/* ---------- Start minimal animation to show scene before start ---------- */
-(function warmup(){
-  // small idle animation so the page doesn't look dead before Start
-  let t0 = performance.now();
-  function idle(now){
-    const dt = Math.min(0.05, (now - t0)/1000);
-    t0 = now;
-    cameraX += dt * 6;
-    // draw scene and hand idle
-    draw();
-    drawHand(dt * 0.6);
-    requestAnimationFrame(idle);
-  }
-  requestAnimationFrame(idle);
-})();
+function drawPortal(){
+if(distance%2000>1800){
+ctx.fillStyle="#8000ff";
+ctx.fillRect(canvas.width/2-40,canvas.height*0.55,80,120);
+}
+}
 
-/* ---------- End of script ---------- */
+function drawHand(){
+ctx.fillStyle="#f5c6a5";
+ctx.fillRect(canvas.width/2-20,canvas.height-140,40,100);
+}
+
+function loop(){
+if(!running) return;
+distance+=4;
+
+if(distance>2000){
+biomeIndex++;
+distance=0;
+if(biomeIndex>=BIOMES.length){
+running=false;
+document.getElementById("rewardScreen").style.display="flex";
+return;
+}
+}
+
+document.getElementById("timer").innerText=
+Math.floor(timeLeft/60)+":"+(timeLeft%60).toString().padStart(2,"0");
+document.getElementById("biomeLabel").innerText=BIOMES[biomeIndex].name;
+document.getElementById("progressBar").style.width=
+((biomeIndex/BIOMES.length)*100)+"%";
+
+drawSky(BIOMES[biomeIndex]);
+drawWorld();
+drawTrees();
+drawPortal();
+drawHand();
+
+requestAnimationFrame(loop);
+}
 </script>
-
 </body>
 </html>
