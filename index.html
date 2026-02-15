@@ -63,11 +63,12 @@
 </div>
 
 <script>
-/* ====== Basic setup ====== */
+/* ====== Setup ====== */
 const bg = document.getElementById('bg');
 const bgCtx = bg.getContext('2d');
 let DPR = Math.max(1, window.devicePixelRatio || 1);
 
+/* ====== Resize background ====== */
 function resizeBg(){
   DPR = Math.max(1, window.devicePixelRatio || 1);
   bg.width = Math.round(window.innerWidth * DPR);
@@ -80,7 +81,7 @@ function resizeBg(){
 window.addEventListener('resize', resizeBg);
 resizeBg();
 
-/* ====== Clouds & background ====== */
+/* ====== Clouds ====== */
 let clouds = [];
 function initClouds(){
   clouds = [];
@@ -90,6 +91,7 @@ function initClouds(){
 }
 initClouds();
 
+/* ====== Background draw ====== */
 function drawBackground(){
   const h = new Date().getHours();
   const isNight = (h>=20 || h<6);
@@ -116,7 +118,7 @@ function drawBackground(){
     drawPixelCloud(c.x, c.y, c.w);
   });
 
-  // ground blocks
+  // ground
   const groundH = window.innerHeight * 0.28;
   const baseY = window.innerHeight - groundH;
   bgCtx.fillStyle = '#3b2a16';
@@ -151,10 +153,10 @@ function drawBlockTop(x,y,size,top,shadow){
   bgCtx.fillStyle = shadow; bgCtx.fillRect(x,y+14,size,4);
 }
 
-/* ====== Particles (drawn on bg canvas) ====== */
+/* ====== Particles ====== */
 let particles = [];
 function spawnParticle(x,y,color){
-  particles.push({x,y,vx:(Math.random()-0.5)*2,vy:-1.5-Math.random()*1.5,life:50+Math.random()*30,color});
+  particles.push({x,y,vx:(Math.random()-0.5)*2,vy:-1.5-Math.random()*1.5,life:50+Math.random()*30,color,size:2+Math.random()*4});
 }
 function burstParticlesAtCanvas(x,y,color,count=60){
   for(let i=0;i<count;i++) spawnParticle(x + (Math.random()-0.5)*40, y + (Math.random()-0.5)*40, color);
@@ -168,139 +170,119 @@ function updateParticles(){
 }
 function drawParticles(){
   particles.forEach(p=>{
-    const s = 6;
     bgCtx.fillStyle = p.color;
-    bgCtx.fillRect(Math.round(p.x), Math.round(p.y), s, s);
-    bgCtx.fillStyle = 'rgba(0,0,0,0.35)';
-    bgCtx.fillRect(Math.round(p.x), Math.round(p.y+s-2), s, 2);
+    bgCtx.fillRect(Math.round(p.x), Math.round(p.y), p.size, p.size);
+    bgCtx.fillStyle = 'rgba(0,0,0,0.25)';
+    bgCtx.fillRect(Math.round(p.x), Math.round(p.y+p.size-1), p.size, 1);
   });
 }
 
-/* ====== Biome canvases (the 4 tiles) ====== */
+/* ====== Biomes ====== */
 const biomeEls = Array.from(document.querySelectorAll('.biome'));
 const biomeCanvases = biomeEls.map(el => el.querySelector('.biome-canvas'));
-
 function resizeBiomeCanvases(){
-  const bgRect = bg.getBoundingClientRect();
-  const canvasRect = bgRect; // bg is full-screen fixed at 0,0
   const ratio = DPR;
-  biomeCanvases.forEach((c, idx) => {
+  biomeCanvases.forEach((c, idx)=>{
     const rect = c.getBoundingClientRect();
-    // set internal pixel size for crisp pixel art
-    c.width = Math.round(rect.width * ratio);
-    c.height = Math.round(rect.height * ratio);
+    c.width = Math.round(rect.width*ratio);
+    c.height = Math.round(rect.height*ratio);
     const bctx = c.getContext('2d');
     bctx.setTransform(ratio,0,0,ratio,0,0);
     drawBiome(bctx, rect.width, rect.height, idx);
   });
 }
-window.addEventListener('resize', () => { resizeBg(); initClouds(); resizeBiomeCanvases(); });
+window.addEventListener('resize', ()=>{ resizeBg(); resizeBiomeCanvases(); });
 resizeBiomeCanvases();
 
 function drawBiome(bctx, w, h, index){
   bctx.imageSmoothingEnabled = false;
   bctx.clearRect(0,0,w,h);
-  const block = Math.max(6, Math.floor(w/8));
+  const block = Math.max(6,Math.floor(w/8));
   let palette;
-  if(index===0) palette = {top:'#4caf34', mid:'#3b2a16', acc:'#2f6f1f'};
-  else if(index===1) palette = {top:'#9ea7b8', mid:'#6c7484', acc:'#4b5260'};
-  else if(index===2) palette = {top:'#f2d28b', mid:'#d1b06a', acc:'#b8944f'};
-  else palette = {top:'#f5f7ff', mid:'#cfd6e8', acc:'#a9b3cc'};
+  if(index===0) palette={top:'#4caf34',mid:'#3b2a16',acc:'#2f6f1f'};
+  else if(index===1) palette={top:'#9ea7b8',mid:'#6c7484',acc:'#4b5260'};
+  else if(index===2) palette={top:'#f2d28b',mid:'#d1b06a',acc:'#b8944f'};
+  else palette={top:'#f5f7ff',mid:'#cfd6e8',acc:'#a9b3cc'};
 
   const cols = Math.ceil(w/block), rows = Math.ceil(h/block);
   for(let y=0;y<rows;y++){
     for(let x=0;x<cols;x++){
-      const px = x*block, py = y*block;
-      let color = (y===0) ? palette.top : (Math.random()<0.12 ? palette.acc : palette.mid);
-      bctx.fillStyle = color;
-      bctx.fillRect(px,py,block,block);
-      bctx.fillStyle = 'rgba(0,0,0,0.22)';
+      const px=x*block, py=y*block;
+      let color=(y===0)?palette.top:(Math.random()<0.12?palette.acc:palette.mid);
+      bctx.fillStyle=color; bctx.fillRect(px,py,block,block);
+      bctx.fillStyle='rgba(0,0,0,0.22)';
       bctx.fillRect(px,py+block-3,block,3);
     }
   }
 }
 
 /* ====== Timer & UI ====== */
-const totalTime = 120;
-let timeLeft = totalTime;
-let timerInterval = null;
-let running = false;
-
-const timerEl = document.getElementById('timer');
-const xpFill = document.getElementById('xpFill');
-const startBtn = document.getElementById('startBtn');
-const resetBtn = document.getElementById('resetBtn');
-const statsEl = document.getElementById('stats');
-
-let save = JSON.parse(localStorage.getItem('toothQuestElite') || 'null') || { totalMinutes:0, streak:0, lastDate:null };
+const totalTime=120, timerEl=document.getElementById('timer'), xpFill=document.getElementById('xpFill'), startBtn=document.getElementById('startBtn'), resetBtn=document.getElementById('resetBtn'), statsEl=document.getElementById('stats');
+let timeLeft=totalTime, timerInterval=null, running=false;
+let save;
+try{ save=JSON.parse(localStorage.getItem('toothQuestElite')||'null')||{totalMinutes:0,streak:0,lastDate:null}; }catch(e){ save={totalMinutes:0,streak:0,lastDate:null}; }
 function saveData(){ localStorage.setItem('toothQuestElite', JSON.stringify(save)); }
-function formatTime(t){ const m=Math.floor(t/60), s=t%60; return (m<10?'0':'')+m+':'+(s<10?'0':'')+s; }
+function formatTime(t){ const m=Math.floor(t/60),s=t%60; return (m<10?'0':'')+m+':'+(s<10?'0':'')+s; }
 function updateStatsUI(){
   const level = Math.floor(save.totalMinutes/10)+1;
-  statsEl.innerHTML = `<div><strong>Level ${level}</strong> · World Builder</div>
+  statsEl.innerHTML=`<div><strong>Level ${level}</strong> · World Builder</div>
     <div>Total brushing time: <strong>${save.totalMinutes}</strong> minutes</div>
     <div>Daily streak: <strong>${save.streak}</strong> day${save.streak===1?'':'s'}</div>`;
 }
 updateStatsUI();
 
-/* ====== Audio helper (safe) ====== */
-let audioCtx = null;
+/* ====== Audio helper ====== */
+let audioCtx=null;
 function playBleep(freq=880,dur=0.08){
   try{
-    if(!audioCtx) audioCtx = new (window.AudioContext||window.webkitAudioContext)();
-    const o = audioCtx.createOscillator();
-    const g = audioCtx.createGain();
-    o.type = 'square'; o.frequency.value = freq;
-    g.gain.setValueAtTime(0.12, audioCtx.currentTime);
-    g.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + dur);
+    if(!audioCtx) audioCtx=new(window.AudioContext||window.webkitAudioContext)();
+    const o=audioCtx.createOscillator(), g=audioCtx.createGain();
+    o.type='square'; o.frequency.value=freq;
+    g.gain.setValueAtTime(0.12,audioCtx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001,audioCtx.currentTime+dur);
     o.connect(g); g.connect(audioCtx.destination);
-    o.start(); o.stop(audioCtx.currentTime + dur);
-  }catch(e){ console.warn('Audio blocked or unavailable', e); }
+    o.start(); o.stop(audioCtx.currentTime+dur);
+  }catch(e){ console.warn('Audio blocked', e); }
 }
 
 /* ====== Game tick ====== */
 function gameTick(){
   timeLeft--;
-  if(timeLeft < 0){ finishQuest(); return; }
-  timerEl.textContent = formatTime(timeLeft);
-  if(timeLeft <= 10) timerEl.classList.add('low'); else timerEl.classList.remove('low');
+  if(timeLeft<0){ finishQuest(); return; }
+  timerEl.textContent=formatTime(timeLeft);
+  timerEl.classList.toggle('low', timeLeft<=10);
 
-  const progress = (totalTime - timeLeft) / totalTime;
-  const percent = Math.round(progress * 100);
-  xpFill.style.width = percent + '%';
+  const progress=(totalTime-timeLeft)/totalTime;
+  const percent=Math.round(progress*100);
+  xpFill.style.width=percent+'%';
 
-  const quadIndex = Math.min(3, Math.floor(progress * 4));
-  biomeEls.forEach(b => b.classList.remove('active'));
-  if(quadIndex >= 0 && quadIndex < 4){
-    const el = biomeEls[quadIndex];
-    el.classList.add('active');
-    // compute center of biome in canvas coordinates
-    const rect = el.getBoundingClientRect();
-    const bgRect = bg.getBoundingClientRect();
-    const cx = (rect.left + rect.width/2) - bgRect.left;
-    const cy = (rect.top + rect.height/2) - bgRect.top;
-    burstParticlesAtCanvas(cx * DPR, cy * DPR, '#7CFC00', 8);
+  const quadIndex=Math.min(3,Math.floor(progress*4));
+  biomeEls.forEach(b=>b.classList.remove('active'));
+  if(quadIndex>=0&&quadIndex<4){
+    const el=biomeEls[quadIndex]; el.classList.add('active');
+    const rect=el.getBoundingClientRect(), bgRect=bg.getBoundingClientRect();
+    const cx=(rect.left+rect.width/2)-bgRect.left, cy=(rect.top+rect.height/2)-bgRect.top;
+    burstParticlesAtCanvas(cx*DPR, cy*DPR, '#7CFC00', 8);
   }
 
-  playBleep(660, 0.04);
+  playBleep(660,0.04);
 }
 
 /* ====== Finish ====== */
 function finishQuest(){
-  clearInterval(timerInterval); timerInterval = null; running = false;
-  timeLeft = 0; timerEl.textContent = '00:00'; timerEl.classList.remove('low');
+  clearInterval(timerInterval); timerInterval=null; running=false; timeLeft=0;
+  timerEl.textContent='00:00'; timerEl.classList.remove('low');
 
-  save.totalMinutes += 2;
-  const today = new Date().toDateString();
-  if(save.lastDate !== today){ save.streak++; save.lastDate = today; }
+  save.totalMinutes+=2;
+  const today=new Date().toDateString();
+  if(save.lastDate!==today){ save.streak++; save.lastDate=today; }
   saveData(); updateStatsUI();
 
-  biomeEls.forEach(b => b.classList.remove('active'));
-  startBtn.style.display = 'none'; resetBtn.style.display = 'inline-block'; startBtn.disabled = false;
+  biomeEls.forEach(b=>b.classList.remove('active'));
+  startBtn.style.display='none'; resetBtn.style.display='inline-block'; startBtn.disabled=false;
 
-  // big burst at center
-  const bgRect = bg.getBoundingClientRect();
-  burstParticlesAtCanvas((bgRect.width/2) * DPR, (bgRect.height/2) * DPR, '#7CFC00', 120);
+  const bgRect=bg.getBoundingClientRect();
+  burstParticlesAtCanvas((bgRect.width/2)*DPR,(bgRect.height/2)*DPR,'#7CFC00',120);
   try{ if(navigator.vibrate) navigator.vibrate([200,100,200]); }catch(e){}
   playBleep(880,0.12); setTimeout(()=>playBleep(1320,0.12),90);
 }
@@ -308,34 +290,22 @@ function finishQuest(){
 /* ====== Buttons ====== */
 startBtn.addEventListener('click', ()=>{
   if(running) return;
-  running = true; timeLeft = totalTime; timerEl.textContent = formatTime(timeLeft);
-  xpFill.style.width = '0%'; startBtn.disabled = true; resetBtn.style.display = 'none';
-  timerInterval = setInterval(gameTick, 1000);
+  running=true; timeLeft=totalTime; timerEl.textContent=formatTime(timeLeft);
+  xpFill.style.width='0%'; startBtn.disabled=true; resetBtn.style.display='none';
+  timerInterval=setInterval(gameTick,1000);
   try{ if(navigator.vibrate) navigator.vibrate(80); }catch(e){}
   playBleep(520,0.08);
 });
 resetBtn.addEventListener('click', ()=>{
-  running = false; clearInterval(timerInterval); timerInterval = null;
-  timeLeft = totalTime; timerEl.textContent = formatTime(timeLeft); xpFill.style.width = '0%';
-  biomeEls.forEach(b => b.classList.remove('active'));
-  startBtn.style.display = 'inline-block'; resetBtn.style.display = 'none'; startBtn.disabled = false;
+  running=false; clearInterval(timerInterval); timerInterval=null;
+  timeLeft=totalTime; timerEl.textContent=formatTime(timeLeft); xpFill.style.width='0%';
+  biomeEls.forEach(b=>b.classList.remove('active'));
+  startBtn.style.display='inline-block'; resetBtn.style.display='none'; startBtn.disabled=false;
 });
 
-/* ====== Main animation loop ====== */
-function loop(){
-  // redraw background (clouds move) and particles
-  drawBackground();
-  updateParticles();
-  drawParticles();
-  requestAnimationFrame(loop);
-}
+/* ====== Animation loop ====== */
+function loop(){ drawBackground(); updateParticles(); drawParticles(); requestAnimationFrame(loop); }
 loop();
 
-/* ====== Initial draw of biomes after fonts/layout settle ====== */
-setTimeout(()=>{ try{ resizeBiomeCanvases(); }catch(e){ console.error('biome init failed', e); } }, 120);
-
-/* ====== Helpful debug info in console ====== */
-console.info('Tooth Quest initialized. DPR=', DPR);
-</script>
-</body>
-</html>
+setTimeout(()=>{ try{ resizeBiomeCanvases(); }catch(e){ console.error('biome init failed', e); } },120);
+console.info('Tooth
