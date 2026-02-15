@@ -5,10 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Oscar's Brushing Adventure</title>
 <style>
-  /* ---------- Reset & Body ---------- */
   * { box-sizing: border-box; margin:0; padding:0; }
   body {
-    font-family: 'Segoe UI', 'Helvetica Neue', sans-serif;
+    font-family: 'Segoe UI', sans-serif;
     background: linear-gradient(to top, #4caf50 0%, #87ceeb 80%);
     display:flex;
     flex-direction:column;
@@ -18,7 +17,6 @@
     color:#fff;
   }
 
-  /* ---------- Header ---------- */
   header {
     font-size:28px;
     font-weight:700;
@@ -26,7 +24,6 @@
     text-shadow: 2px 2px 4px rgba(0,0,0,0.4);
   }
 
-  /* ---------- Landscape Card ---------- */
   #landscape {
     width:90%;
     max-width:400px;
@@ -37,12 +34,11 @@
     position:relative;
     margin-bottom:20px;
     overflow:hidden;
+    border:3px solid #2c6f2c;
   }
-  /* Simple blocky terrain */
-  .terrain { position:absolute; bottom:0; width:100%; height:50px; background:#8b4513; }
-  .grass { position:absolute; bottom:50px; width:100%; height:20px; background:#4caf50; }
+  .terrain { position:absolute; bottom:0; width:100%; height:50px; background:#8b4513; border-top:2px solid #5d2b0a; }
+  .grass { position:absolute; bottom:50px; width:100%; height:20px; background:#4caf50; border-top:2px solid #388e3c; }
 
-  /* ---------- Timer ---------- */
   #timerCard {
     background:rgba(0,0,0,0.6);
     border-radius:16px;
@@ -52,16 +48,17 @@
     width:90%;
     max-width:320px;
     box-shadow: 0 6px 15px rgba(0,0,0,0.4);
+    border:3px solid #7cfc00;
   }
   #timer { font-size:48px; font-weight:700; margin-bottom:12px; }
 
-  /* ---------- XP Bar ---------- */
   #xpBar {
     width:100%;
     height:20px;
     background:#222;
     border-radius:10px;
     overflow:hidden;
+    border:2px solid #555;
   }
   #xpFill {
     width:0%;
@@ -70,7 +67,6 @@
     transition:width 0.1s linear;
   }
 
-  /* ---------- Hand Icon ---------- */
   #hand {
     width:120px;
     height:120px;
@@ -78,9 +74,8 @@
     transition: transform 0.2s ease;
   }
 
-  /* ---------- Buttons ---------- */
   button {
-    padding:12px 24px;
+    padding:12px 20px;
     font-size:18px;
     font-weight:700;
     border:none;
@@ -91,10 +86,10 @@
     box-shadow:0 4px 12px rgba(0,0,0,0.3);
     margin:4px;
     transition: transform 0.1s ease, box-shadow 0.1s ease;
+    border:2px solid #ffa726;
   }
   button:active { transform: translateY(2px); box-shadow:0 2px 6px rgba(0,0,0,0.3); }
 
-  /* ---------- Reward ---------- */
   #reward {
     display:none;
     background:rgba(0,0,0,0.7);
@@ -102,9 +97,18 @@
     border-radius:16px;
     text-align:center;
     box-shadow:0 8px 20px rgba(0,0,0,0.4);
+    position:fixed;
+    top:50%;
+    left:50%;
+    transform:translate(-50%,-50%);
+    width:80%;
+    max-width:360px;
+    border:3px solid #FFD700;
   }
   #reward h2 { font-size:28px; color:#FFD700; margin-bottom:12px; }
   #reward p { font-size:18px; margin-bottom:12px; }
+
+  canvas { position:absolute; pointer-events:none; top:0; left:0; width:100%; height:100%; }
 </style>
 </head>
 <body>
@@ -124,15 +128,18 @@
 <img id="hand" src="" alt="Animated brushing hand">
 
 <div>
-  <button id="startBtn">Start Brushing</button>
-  <button id="restartBtn" style="display:none;">Brush Again</button>
+  <button id="startBtn">Start</button>
+  <button id="pauseBtn" style="display:none;">Pause</button>
+  <button id="resetBtn" style="display:none;">Reset</button>
 </div>
 
 <div id="reward">
   <h2>🎉 Super Brusher! 🎉</h2>
-  <p>Well done, Oscar! Two minutes complete!</p>
+  <p>Two minutes complete! Amazing job, Oscar!</p>
   <button id="closeReward">Close</button>
 </div>
+
+<canvas id="confetti"></canvas>
 
 <script>
 const TOTAL_TIME = 120;
@@ -143,16 +150,23 @@ let timerInterval = null;
 const timerEl = document.getElementById('timer');
 const xpFill = document.getElementById('xpFill');
 const startBtn = document.getElementById('startBtn');
-const restartBtn = document.getElementById('restartBtn');
+const pauseBtn = document.getElementById('pauseBtn');
+const resetBtn = document.getElementById('resetBtn');
 const reward = document.getElementById('reward');
 const closeReward = document.getElementById('closeReward');
 const handImg = document.getElementById('hand');
+const canvas = document.getElementById('confetti');
+const ctx = canvas.getContext('2d');
+
+function resizeCanvas(){ canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
+window.addEventListener('resize', resizeCanvas);
+resizeCanvas();
 
 // Hand sprite
 function makeHandSprite(){
   const c = document.createElement('canvas');
-  c.width = 64; c.height = 64;
-  const ctx = c.getContext('2d');
+  c.width=64; c.height=64;
+  const ctx=c.getContext('2d');
   ctx.fillStyle='#C2A476'; ctx.fillRect(20,40,24,6);
   ctx.fillStyle='#fff'; ctx.fillRect(24,32,16,8);
   ctx.fillStyle='#F1C27D'; ctx.fillRect(10,34,16,12);
@@ -160,53 +174,75 @@ function makeHandSprite(){
 }
 handImg.src = makeHandSprite();
 
-// Animate hand
-let brushPhase = 0;
-function animateHand(){
-  brushPhase += 0.1;
-  handImg.style.transform = `translateX(${Math.sin(brushPhase)*15}px)`;
-  if(running) requestAnimationFrame(animateHand);
-}
+let brushPhase=0;
+function animateHand(){ brushPhase+=0.1; handImg.style.transform=`translateX(${Math.sin(brushPhase)*15}px)`; if(running) requestAnimationFrame(animateHand); }
 
-// Timer formatting
-function formatTime(sec){
-  const m = Math.floor(sec/60);
-  const s = sec % 60;
-  return m + ':' + (s<10?'0':'') + s;
-}
+function formatTime(sec){ const m=Math.floor(sec/60); const s=sec%60; return m + ':' + (s<10?'0':'') + s; }
 
-// Update timer
 function updateTimer(){
   elapsed++;
   timerEl.textContent = formatTime(TOTAL_TIME - elapsed);
   xpFill.style.width = (elapsed/TOTAL_TIME*100)+'%';
-  if(elapsed>=TOTAL_TIME){
-    clearInterval(timerInterval);
-    running=false;
-    reward.style.display='block';
-    restartBtn.style.display='inline-block';
-  }
+  if(elapsed>=TOTAL_TIME){ stopBrushing(); showReward(); startConfetti(); }
 }
 
-// Start brushing
 function startBrushing(){
   if(running) return;
-  running = true;
-  elapsed=0;
+  running=true; elapsed=0;
   timerEl.textContent = formatTime(TOTAL_TIME);
   xpFill.style.width='0%';
   reward.style.display='none';
-  startBtn.style.display='none';
-  restartBtn.style.display='none';
-  timerInterval = setInterval(updateTimer,1000);
+  startBtn.style.display='none'; pauseBtn.style.display='inline-block'; resetBtn.style.display='inline-block';
+  timerInterval=setInterval(updateTimer,1000);
   animateHand();
 }
 
-// Event listeners
-startBtn.addEventListener('click', startBrushing);
-restartBtn.addEventListener('click', startBrushing);
-closeReward.addEventListener('click', ()=>{ reward.style.display='none'; startBtn.style.display='inline-block'; });
-</script>
+function pauseBrushing(){ running=false; clearInterval(timerInterval); startBtn.style.display='inline-block'; pauseBtn.style.display='none'; }
 
+function resetBrushing(){ running=false; clearInterval(timerInterval); elapsed=0; timerEl.textContent=formatTime(TOTAL_TIME); xpFill.style.width='0%'; startBtn.style.display='inline-block'; pauseBtn.style.display='none'; resetBtn.style.display='none'; }
+
+function stopBrushing(){ running=false; clearInterval(timerInterval); pauseBtn.style.display='none'; }
+
+startBtn.addEventListener('click',startBrushing);
+pauseBtn.addEventListener('click',pauseBrushing);
+resetBtn.addEventListener('click',resetBrushing);
+closeReward.addEventListener('click',()=>{ reward.style.display='none'; });
+
+/* ---------- Confetti ---------- */
+let confettiParticles=[];
+function startConfetti(){
+  confettiParticles=[];
+  for(let i=0;i<150;i++){
+    confettiParticles.push({
+      x:Math.random()*canvas.width,
+      y:Math.random()*canvas.height-100,
+      r:Math.random()*6+4,
+      d:Math.random()*30,
+      color:`hsl(${Math.random()*360}, 100%, 60%)`,
+      tilt:Math.random()*10-10,
+      tiltAngleIncrement:Math.random()*0.07+0.05
+    });
+  }
+  requestAnimationFrame(drawConfetti);
+}
+
+function drawConfetti(){
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  for(let i=0;i<confettiParticles.length;i++){
+    let p=confettiParticles[i];
+    ctx.fillStyle=p.color;
+    ctx.beginPath();
+    ctx.moveTo(p.x + p.tilt, p.y);
+    ctx.lineTo(p.x + p.tilt + p.r/2, p.y + p.r);
+    ctx.lineTo(p.x + p.tilt - p.r/2, p.y + p.r);
+    ctx.closePath();
+    ctx.fill();
+    p.tilt+=p.tiltAngleIncrement;
+    p.y+=Math.cos(p.d)+3;
+    if(p.y>canvas.height){ p.y=-10; p.x=Math.random()*canvas.width; }
+  }
+  requestAnimationFrame(drawConfetti);
+}
+</script>
 </body>
 </html>
