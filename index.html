@@ -1,172 +1,205 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-<title>Oscar's Tooth Quest Elite – Ultimate Edition</title>
-<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Nunito:wght@400;700&display=swap" rel="stylesheet">
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
+<title>Oscar's Minecraft Tooth Adventure</title>
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
 <style>
-*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
-html,body{height:100%;overflow:hidden;background:#000;color:#f5f5f5;font-family:Nunito,system-ui,-apple-system,Segoe UI,Roboto,sans-serif;}
-canvas#bg{position:fixed;top:0;left:0;width:100%;height:100%;image-rendering:pixelated;z-index:0;}
-.ui-root{position:relative; z-index:10; display:flex; justify-content:center; padding:18px;}
-.panel{width:420px; max-width:94vw; background:#1b1209; border:6px solid #000; padding:16px; box-shadow:0 12px 0 #000;}
-.title{font-family:'Press Start 2P',monospace;color:#fdf5d0;text-align:center;margin-bottom:6px;font-size:14px;text-shadow:3px 3px #000;}
-.timer{font-family:'Press Start 2P',monospace;text-align:center;font-size:26px;margin:8px 0;color:#fff;text-shadow:4px 4px #000;}
-.timer.low{color:#ff6666;}
-.mouth{width:220px;height:140px;margin:8px auto;display:grid;grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr;gap:6px;}
-.biome{border:4px solid #000;border-radius:4px;overflow:hidden;background:#222;position:relative;box-shadow:0 4px 0 #000;}
-.biome canvas{width:100%;height:100%;display:block;}
-.biome-label{position:absolute;left:6px;bottom:6px;font-family:'Press Start 2P',monospace;font-size:9px;color:#fdf5d0;text-shadow:2px 2px #000;}
-.biome.active{box-shadow:0 0 0 3px rgba(255,255,255,0.12),0 4px 0 #000; animation:flash 0.3s;}
-@keyframes flash{0%{box-shadow:0 0 0 6px rgba(255,255,255,0.3);}50%{box-shadow:0 0 0 0 rgba(255,255,255,0);}100%{box-shadow:0 0 0 3px rgba(255,255,255,0.12);}}
-.xp-bar{height:18px;background:#1a1a1a;border:4px solid #000;overflow:hidden;position:relative;margin-top:10px;}
-.xp-fill{height:100%;width:0;background:linear-gradient(90deg,#3adf4a,#7CFC00);transition:width .2s ease;}
-.btn-row{display:flex;gap:8px;margin-top:12px;}
-button{flex:1;padding:10px;font-family:'Press Start 2P',monospace;background:#5e3716;color:#fdf5d0;border:4px solid #000;box-shadow:0 4px 0 #000;cursor:pointer;touch-action: manipulation;}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+body,html{height:100%;overflow:hidden;background:#000;font-family:'Press Start 2P',monospace;color:#fff;}
+canvas{position:fixed;top:0;left:0;width:100%;height:100%;image-rendering:pixelated;}
+.ui{
+position:absolute;
+top:0;left:0;
+width:100%;height:100%;
+display:flex;
+flex-direction:column;
+align-items:center;
+justify-content:flex-start;
+padding-top:40px;
+pointer-events:none;
+}
+.timer{font-size:28px;text-shadow:4px 4px #000;margin-bottom:10px;}
+.biomeName{font-size:14px;margin-bottom:15px;text-shadow:3px 3px #000;}
+button{
+pointer-events:auto;
+margin-top:20px;
+padding:12px 18px;
+background:#5e3716;
+border:4px solid #000;
+color:#fdf5d0;
+font-family:'Press Start 2P',monospace;
+box-shadow:0 4px 0 #000;
+}
 button:active{transform:translateY(2px);box-shadow:0 2px 0 #000;}
-.stats{font-size:12px;color:#f0e0b5;margin-top:12px;line-height:1.3;}
-@media (max-width:480px){.mouth{width:200px;height:120px;}.panel{padding:12px;}.timer{font-size:22px;}}
+.reward{
+position:absolute;
+top:50%;left:50%;
+transform:translate(-50%,-50%);
+text-align:center;
+display:none;
+}
+.reward h1{font-size:18px;margin-bottom:15px;}
 </style>
 </head>
 <body>
-<canvas id="bg"></canvas>
-<div class="ui-root">
-  <div class="panel" role="application" aria-label="Tooth Quest">
-    <div class="title">Oscar's Tooth Quest Elite</div>
-    <div class="timer" id="timer">02:00</div>
-    <div class="mouth">
-      <div class="biome" data-index="0"><canvas class="biome-canvas"></canvas><div class="biome-label">Grasslands</div></div>
-      <div class="biome" data-index="1"><canvas class="biome-canvas"></canvas><div class="biome-label">Stone Hills</div></div>
-      <div class="biome" data-index="2"><canvas class="biome-canvas"></canvas><div class="biome-label">Desert</div></div>
-      <div class="biome" data-index="3"><canvas class="biome-canvas"></canvas><div class="biome-label">Snow Peaks</div></div>
-    </div>
-    <div class="xp-bar"><div id="xpFill" class="xp-fill"></div></div>
-    <div class="btn-row">
-      <button id="startBtn">Start Quest</button>
-      <button id="resetBtn" style="display:none;">Restart</button>
-    </div>
-    <div class="stats" id="stats"></div>
-  </div>
+<canvas id="game"></canvas>
+
+<div class="ui">
+<div class="timer" id="timer">02:00</div>
+<div class="biomeName" id="biomeName">Overworld</div>
+<button id="startBtn">Start Adventure</button>
+</div>
+
+<div class="reward" id="reward">
+<h1>Quest Complete!</h1>
+<div>+2 Minutes XP</div>
+<button onclick="location.reload()">Play Again</button>
 </div>
 
 <script>
-/* ====== 500% Upgrade Tooth Quest Elite ====== */
-const bg=document.getElementById('bg'), bgCtx=bg.getContext('2d');
-let DPR=window.devicePixelRatio||2, clouds=[], particles=[], mobs=[], biomeEls=Array.from(document.querySelectorAll('.biome')), biomeCanvases=biomeEls.map(e=>e.querySelector('.biome-canvas'));
-let totalTime=120,timeLeft=120,timerInterval=null,running=false;
-const timerEl=document.getElementById('timer'), xpFill=document.getElementById('xpFill'), startBtn=document.getElementById('startBtn'), resetBtn=document.getElementById('resetBtn'), statsEl=document.getElementById('stats');
-let save;
-try{ save=JSON.parse(localStorage.getItem('toothQuestElite')||'null')||{totalMinutes:0,streak:0,lastDate:null}; }catch(e){ save={totalMinutes:0,streak:0,lastDate:null}; }
+const canvas=document.getElementById("game");
+const ctx=canvas.getContext("2d");
+let DPR=window.devicePixelRatio||2;
 
-function saveData(){ localStorage.setItem('toothQuestElite',JSON.stringify(save)); }
-function formatTime(t){const m=Math.floor(t/60),s=t%60;return(m<10?'0':'')+m+':'+(s<10?'0':'')+s;}
-function updateStatsUI(){ const level=Math.floor(save.totalMinutes/10)+1; statsEl.innerHTML=`<div><strong>Level ${level}</strong> · World Builder</div><div>Total brushing time: <strong>${save.totalMinutes}</strong> minutes</div><div>Daily streak: <strong>${save.streak}</strong> day${save.streak===1?'':'s'}</div>`; }
-updateStatsUI();
-
-/* ====== Background & Clouds ====== */
-function resizeBg(){
-  DPR=window.devicePixelRatio||2;
-  bg.width=Math.round(window.innerWidth*DPR);
-  bg.height=Math.round(window.innerHeight*DPR);
-  bg.style.width=window.innerWidth+'px';
-  bg.style.height=window.innerHeight+'px';
-  bgCtx.setTransform(DPR,0,0,DPR,0,0);
-  drawBackground();
-  resizeBiomeCanvases();
+function resize(){
+canvas.width=innerWidth*DPR;
+canvas.height=innerHeight*DPR;
+canvas.style.width=innerWidth+"px";
+canvas.style.height=innerHeight+"px";
+ctx.setTransform(DPR,0,0,DPR,0,0);
 }
-window.addEventListener('resize', resizeBg);
-window.addEventListener('load', resizeBg);
+resize();
+addEventListener("resize",resize);
 
-function initClouds(){ clouds=[]; for(let i=0;i<6;i++){ clouds.push({x:Math.random()*window.innerWidth,y:40+Math.random()*120,speed:0.2+Math.random()*0.4,w:40+Math.random()*60}); } }
-initClouds();
+let time=120;
+let running=false;
+let particles=[];
+let currentBiome=0;
 
-function drawBackground(){
-  const h=new Date().getHours(), isNight=(h>=20||h<6);
-  const grad=bgCtx.createLinearGradient(0,0,0,window.innerHeight*0.6);
-  grad.addColorStop(0,isNight?'#050816':'#6ec5ff'); grad.addColorStop(1,isNight?'#0a1020':'#9ad8ff');
-  bgCtx.fillStyle=grad; bgCtx.fillRect(0,0,window.innerWidth,window.innerHeight);
-  // sun/moon pulse
-  bgCtx.save();
-  const pulse=Math.sin(Date.now()/500)*4;
-  bgCtx.translate(window.innerWidth-80+pulse,80+pulse);
-  bgCtx.fillStyle=isNight?'#f5f5ff':'#ffe27a'; bgCtx.beginPath(); bgCtx.arc(0,0,26,0,Math.PI*2); bgCtx.fill();
-  bgCtx.restore();
-  // clouds
-  bgCtx.fillStyle=isNight?'#cfd6ff':'#ffffff';
-  clouds.forEach(c=>{ c.x+=c.speed; if(c.x>window.innerWidth+80)c.x=-120; drawPixelCloud(c.x,c.y,c.w); });
-  // ground
-  const baseY=window.innerHeight*0.72, block=24;
-  bgCtx.fillStyle='#3b2a16'; bgCtx.fillRect(0,baseY,window.innerWidth,window.innerHeight-baseY);
-  for(let x=0;x<window.innerWidth;x+=block){ for(let y=baseY;y<window.innerHeight;y+=block){ drawBlock(x,y,block,'#4b341c','#3b2a16'); } }
-  bgCtx.fillStyle='#3f8f2b'; bgCtx.fillRect(0,baseY-22,window.innerWidth,22);
-  for(let x=0;x<window.innerWidth;x+=block) drawBlockTop(x,baseY-22,block,'#4caf34','#2f6f1f');
-}
-function drawPixelCloud(x,y,w){ const h=Math.round(w*0.6), step=8; for(let i=0;i<w;i+=step){ for(let j=0;j<h;j+=step){ if(Math.random()>0.25) bgCtx.fillRect(Math.round(x+i),Math.round(y+j),step,step); } } }
-function drawBlock(x,y,s,top,side){ bgCtx.fillStyle=side; bgCtx.fillRect(x,y,s,s); bgCtx.fillStyle=top; bgCtx.fillRect(x,y,s,s-4); }
-function drawBlockTop(x,y,s,top,sh){ bgCtx.fillStyle=top; bgCtx.fillRect(x,y,s,18); bgCtx.fillStyle=sh; bgCtx.fillRect(x,y+14,s,4); }
+const biomes=[
+{name:"Overworld",sky:"#6ec5ff",ground:"#3f8f2b"},
+{name:"Desert",sky:"#ffd27f",ground:"#e5c07b"},
+{name:"Snowy Tundra",sky:"#bcdfff",ground:"#e8f2ff"},
+{name:"The End",sky:"#2e003e",ground:"#3b1c4d"}
+];
 
-/* ====== Biomes & Mobs (chaotic) ====== */
-function resizeBiomeCanvases(){ biomeCanvases.forEach((c,i)=>{ const r=c.getBoundingClientRect(); c.width=Math.round(r.width*DPR); c.height=Math.round(r.height*DPR); const bctx=c.getContext('2d'); bctx.setTransform(DPR,0,0,DPR,0,0); drawBiome(bctx,r.width,r.height,i); }); }
-function drawBiome(bctx,w,h,i){
-  bctx.imageSmoothingEnabled=false; bctx.clearRect(0,0,w,h);
-  const block=Math.max(6,Math.floor(w/8)); 
-  let p;
-  if(i===0)p={top:'#4caf34',mid:'#3b2a16',acc:'#2f6f1f'};
-  else if(i===1)p={top:'#9ea7b8',mid:'#6c7484',acc:'#4b5260'};
-  else if(i===2)p={top:'#f2d28b',mid:'#d1b06a',acc:'#b8944f'};
-  else p={top:'#f5f7ff',mid:'#cfd6e8',acc:'#a9b3cc'};
-  const cols=Math.ceil(w/block), rows=Math.ceil(h/block);
-  for(let y=0;y<rows;y++){ for(let x=0;x<cols;x++){ const px=x*block,py=y*block; const color=(y===0)?p.top:(Math.random()<0.12?p.acc:p.mid); bctx.fillStyle=color; bctx.fillRect(px,py,block,block); bctx.fillStyle='rgba(0,0,0,0.22)'; bctx.fillRect(px,py+block-3,block,3); } }
-  // spawn mobs randomly
-  if(running && Math.random()<0.03){ mobs.push({biome:i,x:Math.random()*w,y:Math.random()*h,life:30+Math.random()*30}); }
-  mobs.forEach(m=>{ if(m.biome===i){ bctx.fillStyle='#ff0000'; bctx.fillRect(m.x,m.y,4,4); m.life--; } }); mobs=mobs.filter(m=>m.life>0);
+const timerEl=document.getElementById("timer");
+const biomeName=document.getElementById("biomeName");
+const startBtn=document.getElementById("startBtn");
+const reward=document.getElementById("reward");
+
+let audioCtx;
+
+function beep(freq){
+if(!audioCtx)audioCtx=new (window.AudioContext||window.webkitAudioContext)();
+const o=audioCtx.createOscillator();
+const g=audioCtx.createGain();
+o.frequency.value=freq;
+o.type="square";
+o.connect(g);
+g.connect(audioCtx.destination);
+g.gain.setValueAtTime(0.1,audioCtx.currentTime);
+g.gain.exponentialRampToValueAtTime(0.001,audioCtx.currentTime+0.1);
+o.start();
+o.stop(audioCtx.currentTime+0.1);
 }
 
-/* ====== Particles, loot, XP explosions ====== */
-function spawnParticle(x,y,color){ particles.push({x,y,vx:(Math.random()-0.5)*2,vy:-1.5-Math.random()*1.5,life:50+Math.random()*30,color,size:2+Math.random()*4}); }
-function burstParticlesAtCanvas(x,y,color,count=60){ for(let i=0;i<count;i++) spawnParticle(x+(Math.random()-0.5)*40,y+(Math.random()-0.5)*40,color); }
-function updateParticles(){ for(let i=particles.length-1;i>=0;i--){ const p=particles[i]; p.x+=p.vx; p.y+=p.vy; p.vy+=0.05; p.life--; if(p.life<=0) particles.splice(i,1); } }
-function drawParticles(){ particles.forEach(p=>{ bgCtx.fillStyle=p.color; bgCtx.fillRect(Math.round(p.x),Math.round(p.y),p.size,p.size); bgCtx.fillStyle='rgba(0,0,0,0.25)'; bgCtx.fillRect(Math.round(p.x),Math.round(p.y+p.size-1),p.size,1); }); }
-
-/* ====== Audio ====== */
-let audioCtx=null;
-function playBleep(f,d){ try{ if(!audioCtx) audioCtx=new(window.AudioContext||window.webkitAudioContext)(); const o=audioCtx.createOscillator(),g=audioCtx.createGain(); o.type='square';o.frequency.value=f; g.gain.setValueAtTime(0.12,audioCtx.currentTime); g.gain.exponentialRampToValueAtTime(0.001,audioCtx.currentTime+d); o.connect(g); g.connect(audioCtx.destination); o.start(); o.stop(audioCtx.currentTime+d); }catch(e){} }
-
-/* ====== Timer ====== */
-function gameTick(){
-  timeLeft--; if(timeLeft<0){ finishQuest(); return; }
-  timerEl.textContent=formatTime(timeLeft); timerEl.classList.toggle('low',timeLeft<=10);
-  const prog=(totalTime-timeLeft)/totalTime; xpFill.style.width=Math.round(prog*100)+'%';
-  const idx=Math.min(3,Math.floor(prog*4));
-  biomeEls.forEach(b=>b.classList.remove('active'));
-  if(idx>=0&&idx<4){ const el=biomeEls[idx]; el.classList.add('active'); const r=el.getBoundingClientRect(), bRect=bg.getBoundingClientRect();
-    burstParticlesAtCanvas((r.left+r.width/2-bRect.left)*DPR,(r.top+r.height/2-bRect.top)*DPR,'#7CFC00',8);
-    // loot drop occasionally
-    if(Math.random()<0.1){ spawnParticle((r.left+r.width/2-bRect.left)*DPR,(r.top+r.height/2-bRect.top)*DPR,'#FFD700'); }
-  }
-  playBleep(660,0.04);
+function format(t){
+const m=Math.floor(t/60);
+const s=t%60;
+return (m<10?"0":"")+m+":"+(s<10?"0":"")+s;
 }
 
-function finishQuest(){
-  clearInterval(timerInterval); timerInterval=null; running=false; timeLeft=0;
-  timerEl.textContent='00:00'; timerEl.classList.remove('low');
-  save.totalMinutes+=2; const today=new Date().toDateString(); if(save.lastDate!==today){ save.streak++; save.lastDate=today; }
-  saveData(); updateStatsUI();
-  biomeEls.forEach(b=>b.classList.remove('active'));
-  startBtn.style.display='none'; resetBtn.style.display='inline-block'; startBtn.disabled=false;
-  const bgRect=bg.getBoundingClientRect(); burstParticlesAtCanvas((bgRect.width/2)*DPR,(bgRect.height/2)*DPR,'#7CFC00',150);
-  for(let i=0;i<8;i++) setTimeout(()=>playBleep(880+i*110,0.12),i*80);
-  try{ if(navigator.vibrate) navigator.vibrate([200,100,200]); }catch(e){}
+function spawnParticle(x,y){
+particles.push({x,y,vx:(Math.random()-0.5)*4,vy:(Math.random()-0.5)*4,life:60});
 }
 
-/* ====== Buttons ====== */
-startBtn.addEventListener('click',()=>{ if(running)return; running=true; timeLeft=totalTime; timerEl.textContent=formatTime(timeLeft); xpFill.style.width='0%'; startBtn.disabled=true; resetBtn.style.display='none'; timerInterval=setInterval(gameTick,1000); try{ if(navigator.vibrate) navigator.vibrate(80); }catch(e){} playBleep(520,0.08); });
-resetBtn.addEventListener('click',()=>{ running=false; clearInterval(timerInterval); timerInterval=null; timeLeft=totalTime; timerEl.textContent=formatTime(timeLeft); xpFill.style.width='0%'; biomeEls.forEach(b=>b.classList.remove('active')); startBtn.style.display='inline-block'; resetBtn.style.display='none'; startBtn.disabled=false; });
+function drawBiome(){
+const b=biomes[currentBiome];
+ctx.fillStyle=b.sky;
+ctx.fillRect(0,0,innerWidth,innerHeight);
 
-/* ====== Animation loop ====== */
-function loop(){ drawBackground(); updateParticles(); biomeCanvases.forEach((c,i)=>drawBiome(c.getContext('2d'),c.width/DPR,c.height/DPR,i)); drawParticles(); requestAnimationFrame(loop); }
+ctx.fillStyle=b.ground;
+ctx.fillRect(0,innerHeight*0.65,innerWidth,innerHeight*0.35);
+
+// block texture
+for(let x=0;x<innerWidth;x+=32){
+for(let y=innerHeight*0.65;y<innerHeight;y+=32){
+ctx.fillStyle="rgba(0,0,0,0.15)";
+ctx.fillRect(x,y+28,32,4);
+}
+}
+}
+
+function updateParticles(){
+particles.forEach(p=>{
+p.x+=p.vx;
+p.y+=p.vy;
+p.life--;
+});
+particles=particles.filter(p=>p.life>0);
+}
+
+function drawParticles(){
+ctx.fillStyle="#ff66cc"; // Enderman pink
+particles.forEach(p=>{
+ctx.fillRect(p.x,p.y,4,4);
+});
+}
+
+function loop(){
+drawBiome();
+updateParticles();
+drawParticles();
+requestAnimationFrame(loop);
+}
 loop();
+
+function nextBiome(){
+currentBiome++;
+if(currentBiome>=biomes.length)currentBiome=biomes.length-1;
+biomeName.textContent=biomes[currentBiome].name;
+for(let i=0;i<60;i++){
+spawnParticle(innerWidth/2,innerHeight/2);
+}
+}
+
+function tick(){
+time--;
+timerEl.textContent=format(time);
+beep(600);
+
+if(time%30===0){
+nextBiome();
+beep(900);
+}
+
+if(time<=0){
+finish();
+}
+}
+
+function finish(){
+running=false;
+clearInterval(timerInterval);
+reward.style.display="block";
+for(let i=0;i<200;i++){
+spawnParticle(Math.random()*innerWidth,Math.random()*innerHeight);
+}
+beep(1000);
+}
+
+let timerInterval;
+
+startBtn.onclick=()=>{
+if(running)return;
+running=true;
+startBtn.style.display="none";
+audioCtx=new (window.AudioContext||window.webkitAudioContext)();
+timerInterval=setInterval(tick,1000);
+};
 </script>
 </body>
 </html>
