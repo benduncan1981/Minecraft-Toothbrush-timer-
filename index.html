@@ -2,300 +2,146 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Oscar's Tooth Quest Elite</title>
 <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
 <style>
-:root{
-  --pixel: 6px;
-  --xp:#7CFC00;
-  --dark:#111;
-}
-
-*{
-  box-sizing:border-box;
-  -webkit-tap-highlight-color:transparent;
-}
-
-body{
-  margin:0;
-  overflow:hidden;
-  font-family:'Press Start 2P', monospace;
-  background:#000;
-  color:white;
-}
-
-canvas{
-  position:fixed;
-  top:0;
-  left:0;
-  image-rendering:pixelated;
-}
-
-.ui{
-  position:relative;
-  z-index:10;
-  text-align:center;
-  padding:15px;
-}
-
-h1{
-  font-size:12px;
-  text-shadow:3px 3px black;
-}
-
-.timer{
-  font-size:28px;
-  margin:15px 0;
-  text-shadow:4px 4px black;
-}
-
-.xp-bar{
-  width:90%;
-  margin:0 auto;
-  height:18px;
-  background:#222;
-  border:4px solid black;
-  position:relative;
-}
-
-.xp-fill{
-  height:100%;
-  width:0%;
-  background:var(--xp);
-}
-
-button{
-  font-family:'Press Start 2P', monospace;
-  margin-top:15px;
-  padding:12px;
-  width:90%;
-  background:#5e3716;
-  color:white;
-  border:5px solid black;
-}
-
-.mouth{
-  width:160px;
-  height:100px;
-  margin:20px auto;
-  display:grid;
-  grid-template-columns:1fr 1fr;
-  grid-template-rows:1fr 1fr;
-  gap:4px;
-}
-
-.quad{
-  background:#550000;
-  border:3px solid black;
-}
-
-.active{
-  background:#ff4444;
-}
-.stats{
-  font-size:8px;
-  margin-top:10px;
-}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+body{font-family:'Press Start 2P',monospace;background:#111;color:white;overflow:hidden;}
+canvas{position:fixed;top:0;left:0;width:100%;height:100%;image-rendering:pixelated;}
+.ui{position:relative;z-index:10;text-align:center;padding:15px;}
+h1{font-size:14px;text-shadow:3px 3px black;margin-bottom:10px;}
+.timer{font-size:28px;margin:15px 0;text-shadow:4px 4px black;}
+.xp-bar{width:90%;margin:0 auto;height:18px;background:#222;border:4px solid black;position:relative;}
+.xp-fill{height:100%;width:0%;background:#7CFC00;}
+button{font-family:'Press Start 2P',monospace;margin-top:10px;padding:12px;width:90%;background:#5e3716;color:white;border:5px solid black;}
+.mouth{width:160px;height:100px;margin:15px auto;display:grid;grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr;gap:4px;}
+.quad{background:#550000;border:3px solid black;}
+.active{background:#ff4444;}
+.stats{font-size:8px;margin-top:10px;}
 </style>
 </head>
 <body>
-
 <canvas id="game"></canvas>
 
 <div class="ui">
-  <h1>Oscar's Tooth Quest</h1>
-  <div class="timer" id="timer">02:00</div>
-
-  <div class="mouth">
-    <div class="quad" id="q0"></div>
-    <div class="quad" id="q1"></div>
-    <div class="quad" id="q2"></div>
-    <div class="quad" id="q3"></div>
-  </div>
-
-  <div class="xp-bar">
-    <div class="xp-fill" id="xp"></div>
-  </div>
-
-  <button id="startBtn">START QUEST</button>
-  <button id="resetBtn" style="display:none;">RESTART</button>
-
-  <div class="stats" id="stats"></div>
+<h1>Oscar's Tooth Quest</h1>
+<div class="timer" id="timer">02:00</div>
+<div class="mouth">
+<div class="quad" id="q0"></div>
+<div class="quad" id="q1"></div>
+<div class="quad" id="q1b"></div>
+<div class="quad" id="q3"></div>
+</div>
+<div class="xp-bar">
+<div class="xp-fill" id="xp"></div>
+</div>
+<button id="startBtn">START QUEST</button>
+<button id="resetBtn" style="display:none;">RESTART</button>
+<div class="stats" id="stats"></div>
 </div>
 
 <script>
-const canvas=document.getElementById("game");
-const ctx=canvas.getContext("2d");
+const canvas=document.getElementById('game');
+const ctx=canvas.getContext('2d');
 canvas.width=window.innerWidth;
 canvas.height=window.innerHeight;
 
-let totalTime=120;
-let timeLeft=120;
-let running=false;
-let lastTime=0;
 let particles=[];
-let bossMode=false;
+
+function spawnParticle(x,y){
+  particles.push({x,y,vx:(Math.random()-0.5)*4,vy:-Math.random()*4,life:60});
+}
+
+function updateParticles(){
+  particles.forEach(p=>{
+    p.x+=p.vx; p.y+=p.vy; p.vy+=0.2; p.life--;
+  });
+  particles=particles.filter(p=>p.life>0);
+}
+
+function drawParticles(){
+  ctx.fillStyle="#7CFC00";
+  particles.forEach(p=>ctx.fillRect(p.x,p.y,4,4));
+}
+
+function drawBackground(){
+  const h=new Date().getHours();
+  ctx.fillStyle=(h>=18||h<6)?"#001":"#87ceeb";
+  ctx.fillRect(0,0,canvas.width,canvas.height);
+}
+
+let totalTime=120;
+let timeLeft=totalTime;
+let timerInterval=null;
+let running=false;
 
 const timerEl=document.getElementById("timer");
 const xpEl=document.getElementById("xp");
 const startBtn=document.getElementById("startBtn");
 const resetBtn=document.getElementById("resetBtn");
 const statsEl=document.getElementById("stats");
-const quads=[0,1,2,3].map(i=>document.getElementById("q"+i));
+const quads=[document.getElementById('q0'),document.getElementById('q1'),document.getElementById('q1b'),document.getElementById('q3')];
 
-let save=JSON.parse(localStorage.getItem("toothQuest"))||{
-  totalMinutes:0,
-  streak:0,
-  lastDate:null
-};
-
+let save=JSON.parse(localStorage.getItem("toothQuest"))||{totalMinutes:0,streak:0,lastDate:null};
 function updateStats(){
   const level=Math.floor(save.totalMinutes/10)+1;
-  statsEl.innerHTML=
-    "Level: "+level+
-    "<br>Streak: "+save.streak+
-    "<br>Total Minutes: "+save.totalMinutes;
+  statsEl.innerHTML="Level: "+level+"<br>Streak: "+save.streak+"<br>Total Minutes: "+save.totalMinutes;
 }
 updateStats();
+function saveData(){localStorage.setItem("toothQuest",JSON.stringify(save));}
 
-function saveData(){
-  localStorage.setItem("toothQuest",JSON.stringify(save));
-}
+function formatTime(t){let m=Math.floor(t/60),s=t%60;return (m<10?'0':'')+m+":"+(s<10?'0':'')+s;}
 
-function formatTime(t){
-  let m=Math.floor(t/60);
-  let s=t%60;
-  return (m<10?"0":"")+m+":"+(s<10?"0":"")+s;
-}
-
-function playTone(freq,dur){
-  const ctxAudio=new (window.AudioContext||window.webkitAudioContext)();
-  const osc=ctxAudio.createOscillator();
-  osc.type="square";
-  osc.frequency.value=freq;
-  osc.connect(ctxAudio.destination);
-  osc.start();
-  osc.stop(ctxAudio.currentTime+dur);
-}
-
-function spawnParticle(x,y){
-  particles.push({
-    x,y,
-    vx:(Math.random()-0.5)*4,
-    vy:-Math.random()*4,
-    life:60
-  });
-}
-
-function explosion(){
-  for(let i=0;i<80;i++){
-    spawnParticle(canvas.width/2,canvas.height/2);
-  }
-  if(navigator.vibrate) navigator.vibrate([200,100,200]);
-}
-
-function updateParticles(){
-  particles.forEach(p=>{
-    p.x+=p.vx;
-    p.y+=p.vy;
-    p.vy+=0.2;
-    p.life--;
-  });
-  particles=particles.filter(p=>p.life>0);
-}
-
-function drawBackground(){
-  const hour=new Date().getHours();
-  if(hour>=18||hour<6){
-    ctx.fillStyle="#001";
-  }else{
-    ctx.fillStyle="#87ceeb";
-  }
-  ctx.fillRect(0,0,canvas.width,canvas.height);
-}
-
-function drawParticles(){
-  ctx.fillStyle="#7CFC00";
-  particles.forEach(p=>{
-    ctx.fillRect(p.x,p.y,4,4);
-  });
-}
-
-function gameLoop(timestamp){
-  if(!lastTime) lastTime=timestamp;
-  const delta=timestamp-lastTime;
-  lastTime=timestamp;
-
-  if(running){
-    if(delta>=1000){
-      timeLeft--;
-      lastTime=timestamp;
-      timerEl.textContent=formatTime(timeLeft);
-      xpEl.style.width=((120-timeLeft)/120*100)+"%";
-
-      const quadIndex=Math.floor((120-timeLeft)/30);
-      quads.forEach(q=>q.classList.remove("active"));
-      if(quadIndex<4) quads[quadIndex].classList.add("active");
-
-      if(timeLeft<=15 && !bossMode){
-        bossMode=true;
-        playTone(100,0.5);
-      }
-
-      if(timeLeft<=0){
-        running=false;
-        explosion();
-        playTone(400,0.4);
-        playTone(600,0.4);
-        finishQuest();
-      }
-
-      spawnParticle(Math.random()*canvas.width,canvas.height/2);
-    }
-  }
-
-  drawBackground();
-  updateParticles();
-  drawParticles();
-  requestAnimationFrame(gameLoop);
+function gameTick(){
+  timeLeft--;
+  if(timeLeft<0){finishQuest();return;}
+  timerEl.textContent=formatTime(timeLeft);
+  xpEl.style.width=((totalTime-timeLeft)/totalTime*100)+'%';
+  let quadIndex=Math.floor((totalTime-timeLeft)/30);
+  quads.forEach(q=>q.classList.remove('active'));
+  if(quadIndex<4) quads[quadIndex].classList.add('active');
+  spawnParticle(Math.random()*canvas.width,canvas.height/2);
 }
 
 function finishQuest(){
+  clearInterval(timerInterval);
+  running=false;
   save.totalMinutes+=2;
   const today=new Date().toDateString();
-  if(save.lastDate!==today){
-    save.streak++;
-    save.lastDate=today;
-  }
-  saveData();
-  updateStats();
-  startBtn.style.display="none";
-  resetBtn.style.display="block";
+  if(save.lastDate!==today){save.streak++; save.lastDate=today;}
+  saveData(); updateStats();
+  quads.forEach(q=>q.classList.remove('active'));
+  startBtn.style.display='none';
+  resetBtn.style.display='block';
+  timerEl.textContent="00:00";
+  for(let i=0;i<80;i++){spawnParticle(canvas.width/2,canvas.height/2);}
+  if(navigator.vibrate) navigator.vibrate([200,100,200]);
 }
 
 startBtn.onclick=()=>{
+  if(running) return;
   running=true;
-  bossMode=false;
-  timeLeft=120;
-  timerEl.textContent="02:00";
+  timeLeft=totalTime;
+  timerEl.textContent=formatTime(timeLeft);
+  timerInterval=setInterval(gameTick,1000);
   startBtn.disabled=true;
-  playTone(200,0.3);
   if(navigator.vibrate) navigator.vibrate(100);
 };
 
 resetBtn.onclick=()=>{
-  timeLeft=120;
-  xpEl.style.width="0%";
-  quads.forEach(q=>q.classList.remove("active"));
-  startBtn.style.display="block";
-  resetBtn.style.display="none";
-  startBtn.disabled=false;
-  bossMode=false;
+  running=false; clearInterval(timerInterval); timeLeft=totalTime;
+  xpEl.style.width="0%"; timerEl.textContent=formatTime(timeLeft);
+  startBtn.style.display='block'; resetBtn.style.display='none'; startBtn.disabled=false;
 };
 
-requestAnimationFrame(gameLoop);
+function loop(){
+  drawBackground();
+  updateParticles();
+  drawParticles();
+  requestAnimationFrame(loop);
+}
+loop();
 </script>
-
 </body>
 </html>
