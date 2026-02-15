@@ -1,92 +1,148 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
+<meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Oscar's Minecraft Timer</title>
+<title>Oscar's Brushing Adventure</title>
 <style>
-  html, body { margin:0; padding:0; width:100%; height:100%; background:#1e1e1e; font-family: monospace; display:flex; flex-direction:column; justify-content:center; align-items:center; }
-  h1 { color:#7CFC00; margin-bottom:10px; }
-  #timer { font-size:48px; color:#fff; margin-bottom:20px; }
-  #progressContainer { width:90%; max-width:400px; height:24px; background:#333; border:2px solid #555; border-radius:8px; overflow:hidden; margin-bottom:20px; }
-  #progress { height:100%; width:0%; background:#7CFC00; transition: width 0.2s linear; }
-  #startBtn { font-size:20px; padding:12px 24px; border:none; border-radius:8px; background:#7CFC00; color:#000; cursor:pointer; }
-  #startBtn:active { transform:scale(0.95); }
-  #canvas { display:block; margin-bottom:20px; }
-  #reward { display:none; color:#fff; text-align:center; margin-top:20px; }
+  html, body { margin:0; padding:0; height:100%; background:#000; font-family:sans-serif; overflow:hidden; }
+  canvas { display:block; width:100vw; height:100vh; image-rendering:pixelated; background:#000; }
+  #hud { position:fixed; top:12px; left:12px; z-index:10; color:#fff; }
+  #timer { font-size:28px; font-weight:bold; margin-bottom:6px; }
+  #xpBar { width:260px; height:16px; background:#222; border:2px solid #333; border-radius:6px; overflow:hidden; }
+  #xpFill { width:0%; height:100%; background:#7CFC00; transition:width 0.1s linear; }
+  #reward { position:fixed; inset:0; display:none; align-items:center; justify-content:center; flex-direction:column; background:rgba(0,0,0,0.9); color:#fff; z-index:20; font-size:24px; text-align:center; }
+  #hand { position:fixed; bottom:6vh; left:50%; transform:translateX(-50%); width:160px; height:120px; image-rendering:pixelated; }
 </style>
 </head>
 <body>
 
-<h1>Oscar's Brushing Adventure</h1>
-<canvas id="canvas" width="300" height="150"></canvas>
-<div id="timer">2:00</div>
-<div id="progressContainer"><div id="progress"></div></div>
-<button id="startBtn">Start Brushing</button>
+<canvas id="game"></canvas>
+
+<div id="hud">
+  <div id="timer">2:00</div>
+  <div id="xpBar"><div id="xpFill"></div></div>
+</div>
+
+<img id="hand" src="" alt="Hand holding toothbrush">
+
 <div id="reward">
-  <h2>🎉 Well Done! 🎉</h2>
-  <p>You brushed for 2 minutes!</p>
+  <div>🎉 Super Brusher! 🎉</div>
+  <div style="margin-top:12px;">
+    <button id="restart">Play Again</button>
+  </div>
 </div>
 
 <script>
-const canvas = document.getElementById('canvas');
-const ctx = canvas.getContext('2d');
-const timerEl = document.getElementById('timer');
-const progressEl = document.getElementById('progress');
-const startBtn = document.getElementById('startBtn');
-const rewardEl = document.getElementById('reward');
+const canvas = document.getElementById('game');
+const ctx = canvas.getContext('2d', { alpha:false });
+let DPR = Math.max(1, window.devicePixelRatio||1);
 
-let totalTime = 120; // seconds
+function resizeCanvas(){
+  DPR = Math.max(1, window.devicePixelRatio||1);
+  canvas.width = Math.floor(window.innerWidth * DPR);
+  canvas.height = Math.floor(window.innerHeight * DPR);
+  canvas.style.width = window.innerWidth+'px';
+  canvas.style.height = window.innerHeight+'px';
+  ctx.setTransform(DPR,0,0,DPR,0,0);
+  ctx.imageSmoothingEnabled = false;
+}
+window.addEventListener('resize', resizeCanvas);
+resizeCanvas();
+
+/* ---------- Game State ---------- */
+const TOTAL_TIME = 120;
 let elapsed = 0;
-let timerInterval;
+let running = false;
+let lastSecond = -1;
+let currentBiome = 0;
+const biomes = ['#4CAF50','#C2B280','#2E7D32','#550055']; // grass, sand, forest, end-purple
+let particles = [];
+let brushPhase = 0;
+const xpFill = document.getElementById('xpFill');
+const timerEl = document.getElementById('timer');
+const reward = document.getElementById('reward');
+const restartBtn = document.getElementById('restart');
+const handImg = document.getElementById('hand');
 
-// Simple pixel blocks for Minecraft feel
-function drawBlocks() {
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-  const blockColors = ['#4CAF50','#8B4513','#C2B280','#2E7D32']; // grass, dirt, sand, leaves
-  for(let i=0;i<canvas.width;i+=20){
-    for(let j=0;j<canvas.height;j+=20){
-      const color = blockColors[Math.floor(Math.random()*blockColors.length)];
-      ctx.fillStyle = color;
-      ctx.fillRect(i,j,20,20);
-    }
-  }
-  // Sparkles
-  for(let i=0;i<5;i++){
-    ctx.fillStyle = '#FF55FF';
-    ctx.fillRect(Math.random()*canvas.width, Math.random()*canvas.height, 2, 2);
-  }
+/* ---------- Hand sprite ---------- */
+function makeHandSprite(){
+  const c = document.createElement('canvas'); c.width=96; c.height=72;
+  const g=c.getContext('2d'); g.imageSmoothingEnabled=false;
+  g.fillStyle='#F1C27D'; g.fillRect(6,38,34,12); // hand
+  g.fillStyle='#C2A476'; g.fillRect(44,44,36,8); // brush handle
+  g.fillStyle='#fff'; g.fillRect(52,34,28,8); // bristles
+  return c.toDataURL();
+}
+handImg.src = makeHandSprite();
+
+/* ---------- Controls ---------- */
+function startGame(){ running=true; elapsed=0; lastSecond=-1; currentBiome=0; particles=[]; reward.style.display='none'; if(!animating) requestAnimationFrame(loop);}
+function restartGame(){ running=false; elapsed=0; xpFill.style.width='0%'; timerEl.textContent='2:00'; reward.style.display='none'; currentBiome=0; particles=[]; startGame();}
+restartBtn.addEventListener('click', restartGame);
+
+/* ---------- Helpers ---------- */
+function formatTime(sec){ const m=Math.floor(sec/60); const s=sec%60; return m+':'+(s<10?'0':'')+s; }
+function spawnParticles(x,y,count=12,color='#ff55ff'){ for(let i=0;i<count;i++){ particles.push({x,y,vx:(Math.random()-0.5)*2,vy:(Math.random()-1.5),life:30+Math.random()*30,size:2+Math.random()*2,color}); }}
+
+/* ---------- Update ---------- */
+function update(dt){
+  if(!running) return;
+  elapsed += dt;
+  const sec = Math.floor(elapsed);
+  if(sec!==lastSecond){ lastSecond=sec; }
+  const progress = Math.min(1,elapsed/TOTAL_TIME);
+  xpFill.style.width = (progress*100)+'%';
+  timerEl.textContent = formatTime(Math.max(0,TOTAL_TIME-Math.floor(elapsed)));
+
+  // update biome every 30s
+  const newBiome = Math.floor(elapsed/30);
+  if(newBiome!==currentBiome){ currentBiome=newBiome; spawnParticles(canvas.width/2,canvas.height/2,24,'#ff55ff'); }
+
+  // particles physics
+  particles.forEach(p=>{ p.x+=p.vx; p.y+=p.vy; p.vy+=0.04; p.life--; });
+  particles = particles.filter(p=>p.life>0);
+
+  if(elapsed>=TOTAL_TIME){ running=false; reward.style.display='flex'; }
 }
 
-function updateTimer() {
-  elapsed++;
-  let remaining = totalTime - elapsed;
-  const minutes = Math.floor(remaining / 60);
-  const seconds = remaining % 60;
-  timerEl.textContent = `${minutes}:${seconds < 10 ? '0'+seconds : seconds}`;
-  progressEl.style.width = `${(elapsed/totalTime)*100}%`;
-  drawBlocks();
+/* ---------- Draw ---------- */
+function draw(){
+  const W=canvas.width/DPR; const H=canvas.height/DPR;
+  // background
+  ctx.fillStyle = biomes[Math.min(currentBiome,biomes.length-1)];
+  ctx.fillRect(0,0,W,H);
 
-  if(elapsed >= totalTime){
-    clearInterval(timerInterval);
-    rewardEl.style.display = 'block';
-    startBtn.disabled = false;
-  }
+  // simple ground
+  ctx.fillStyle='#654321'; ctx.fillRect(0,H*0.7,W,H*0.3);
+
+  // particles
+  particles.forEach(p=>{ ctx.fillStyle=p.color; ctx.fillRect(p.x-1,p.y-1,p.size,p.size); });
+
+  // vignette
+  const grad=ctx.createRadialGradient(W/2,H/2,W*0.1,W/2,H/2,W*0.8);
+  grad.addColorStop(0,'rgba(0,0,0,0)');
+  grad.addColorStop(1,'rgba(0,0,0,0.25)');
+  ctx.fillStyle=grad; ctx.fillRect(0,0,W,H);
 }
 
-startBtn.addEventListener('click', ()=>{
-  startBtn.disabled = true;
-  elapsed = 0;
-  rewardEl.style.display = 'none';
-  timerEl.textContent = '2:00';
-  progressEl.style.width = '0%';
-  drawBlocks();
-  timerInterval = setInterval(updateTimer, 1000);
-});
+/* ---------- Hand Animation ---------- */
+function drawHand(dt){ brushPhase+=dt*2.0; const sway=Math.sin(brushPhase)*8; const bob=Math.sin(brushPhase*1.5)*6; handImg.style.transform=`translateX(-50%) translateY(${bob}px) rotate(${sway*0.01}rad)`; }
 
-// Draw initial scene
-drawBlocks();
+/* ---------- Loop ---------- */
+let lastTime=performance.now(); let animating=false;
+function loop(now){
+  animating=true;
+  const dt=Math.min(0.05,(now-lastTime)/1000);
+  lastTime=now;
+  update(dt);
+  draw();
+  drawHand(dt);
+  if(running || particles.length>0) requestAnimationFrame(loop);
+  else animating=false;
+}
+requestAnimationFrame(loop);
+
 </script>
-
 </body>
 </html>
