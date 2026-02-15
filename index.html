@@ -1,47 +1,24 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Minecraft Brushing Adventure</title>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>First Person Brushing Adventure</title>
 <style>
-html,body{
-  margin:0;
-  padding:0;
-  overflow:hidden;
-  background:#000;
-  font-family:monospace;
-}
-canvas{ display:block; image-rendering: pixelated; }
-#ui{
-  position:absolute;
-  top:10px;
-  left:10px;
-  right:10px;
-  color:white;
-}
-#xpBar{
-  height:14px;
-  border:2px solid #555;
-  background:#222;
-}
-#xpFill{
-  height:100%;
-  width:0%;
-  background:limegreen;
-}
-#timer{ margin-top:6px; }
-#reward{
-  position:absolute;
-  inset:0;
-  display:none;
-  align-items:center;
-  justify-content:center;
-  flex-direction:column;
-  background:black;
-  color:white;
-  font-size:22px;
-}
+  :root{ --hud-bg: rgba(0,0,0,0.45); --accent: #7CFC00; }
+  html,body{ height:100%; margin:0; background:#000; font-family:monospace; -webkit-font-smoothing:antialiased; }
+  canvas{ display:block; width:100vw; height:100vh; image-rendering:pixelated; }
+  #ui{ position: absolute; left:12px; top:12px; right:12px; display:flex; gap:12px; align-items:center; z-index:20; pointer-events:none; }
+  .panel{ background:var(--hud-bg); color:#fff; padding:8px 10px; border-radius:8px; display:flex; gap:8px; align-items:center; pointer-events:auto; }
+  #controls{ position:absolute; left:50%; transform:translateX(-50%); top:12px; z-index:21; pointer-events:auto; }
+  button{ font:inherit; padding:8px 12px; border-radius:6px; border:1px solid #444; background:#111; color:#fff; cursor:pointer; }
+  #xpBar{ width:220px; height:14px; background:#222; border:2px solid #333; border-radius:6px; overflow:hidden; }
+  #xpFill{ height:100%; width:0%; background:var(--accent); transition:width 0.15s linear; }
+  #timer{ font-weight:bold; min-width:64px; text-align:center; }
+  #reward{ position:fixed; inset:0; display:none; align-items:center; justify-content:center; flex-direction:column; background:rgba(0,0,0,0.9); color:#fff; z-index:30; font-size:22px; }
+  #reward .btn{ margin-top:14px; }
+  #crosshair{ position:fixed; left:50%; top:50%; transform:translate(-50%,-50%); width:40px; height:40px; pointer-events:none; z-index:19; }
+  #footerNote{ position:fixed; left:12px; bottom:12px; color:#ddd; font-size:12px; z-index:21; }
 </style>
 </head>
 <body>
@@ -49,205 +26,380 @@ canvas{ display:block; image-rendering: pixelated; }
 <canvas id="game"></canvas>
 
 <div id="ui">
-  <div id="xpBar"><div id="xpFill"></div></div>
-  <div id="timer">2:00</div>
+  <div class="panel">
+    <div style="font-size:12px; opacity:0.9;">XP</div>
+    <div id="xpBar"><div id="xpFill"></div></div>
+  </div>
+  <div class="panel" id="hudTimer">
+    <div style="font-size:12px; opacity:0.9;">Time</div>
+    <div id="timer">2:00</div>
+  </div>
 </div>
 
-<div id="reward">
-  <div>Achievement Unlocked</div>
-  <div>Super Brusher</div>
+<div id="controls">
+  <div class="panel">
+    <button id="startBtn">Start</button>
+    <button id="pauseBtn" style="display:none">Pause</button>
+    <button id="restartBtn" style="display:none">Restart</button>
+  </div>
 </div>
+
+<div id="crosshair" aria-hidden="true">
+  <svg width="40" height="40" viewBox="0 0 40 40">
+    <rect x="19" y="6" width="2" height="10" fill="rgba(255,255,255,0.95)"/>
+    <rect x="6" y="19" width="10" height="2" fill="rgba(255,255,255,0.95)"/>
+  </svg>
+</div>
+
+<div id="reward" role="dialog" aria-modal="true">
+  <div style="text-align:center;">
+    <div style="font-size:28px; font-weight:700;">Achievement Unlocked</div>
+    <div style="font-size:20px; margin-top:6px;">Super Brusher</div>
+    <button id="rewardRestart" class="btn">Play Again</button>
+  </div>
+</div>
+
+<div id="footerNote">Tap Start to enable audio (required by Safari)</div>
 
 <script>
-const canvas = document.getElementById("game");
-const ctx = canvas.getContext("2d");
-const dpr = window.devicePixelRatio || 1;
-canvas.width = innerWidth * dpr;
-canvas.height = innerHeight * dpr;
-canvas.style.width = innerWidth + "px";
-canvas.style.height = innerHeight + "px";
-ctx.scale(dpr,dpr);
-ctx.imageSmoothingEnabled = false;
-
-const VIEW_W = innerWidth;
-const VIEW_H = innerHeight;
-
-const totalTime = 120;
-let elapsed = 0;
-let lastSecond = -1;
-let running = true;
-let cameraX = 0;
-
-const TILE = 32;
-const BASE = 16;
-const SCALE = TILE/BASE;
-const sectionLength = totalTime/4;
-
-const atlas = document.createElement("canvas");
-atlas.width = 128;
-atlas.height = 128;
-const actx = atlas.getContext("2d");
-actx.imageSmoothingEnabled=false;
-
-function pixelRect(x,y,w,h,c){
-  actx.fillStyle=c;
-  actx.fillRect(x,y,w,h);
+/* ====== Setup canvas and pixel atlas ====== */
+const canvas = document.getElementById('game');
+const ctx = canvas.getContext('2d', { alpha: false });
+let DPR = Math.max(1, window.devicePixelRatio || 1);
+function resizeCanvas(){
+  DPR = Math.max(1, window.devicePixelRatio || 1);
+  canvas.width = Math.floor(window.innerWidth * DPR);
+  canvas.height = Math.floor(window.innerHeight * DPR);
+  canvas.style.width = window.innerWidth + 'px';
+  canvas.style.height = window.innerHeight + 'px';
+  ctx.setTransform(DPR,0,0,DPR,0,0);
+  ctx.imageSmoothingEnabled = false;
 }
+window.addEventListener('resize', resizeCanvas);
+resizeCanvas();
 
-function createTextures(){
-  // grass top
-  pixelRect(0,0,16,16,"#4CAF50");
-  for(let i=0;i<20;i++) pixelRect(Math.random()*16,Math.random()*16,1,1,"#388E3C");
-
+/* create small atlas (16x16 tiles) */
+const atlas = document.createElement('canvas');
+atlas.width = 128; atlas.height = 128;
+const actx = atlas.getContext('2d');
+actx.imageSmoothingEnabled = false;
+function pixelRect(x,y,w,h,c){ actx.fillStyle=c; actx.fillRect(x,y,w,h); }
+function createAtlas(){
+  // grass
+  pixelRect(0,0,16,16,'#4CAF50');
+  for(let i=0;i<20;i++) pixelRect(Math.floor(Math.random()*16),Math.floor(Math.random()*16),1,1,'#388E3C');
   // dirt
-  pixelRect(16,0,16,16,"#8B4513");
-  for(let i=0;i<20;i++) pixelRect(16+Math.random()*16,Math.random()*16,1,1,"#5D3311");
-
+  pixelRect(16,0,16,16,'#8B4513');
+  for(let i=0;i<20;i++) pixelRect(16+Math.floor(Math.random()*16),Math.floor(Math.random()*16),1,1,'#5D3311');
   // sand
-  pixelRect(32,0,16,16,"#C2B280");
-  for(let i=0;i<15;i++) pixelRect(32+Math.random()*16,Math.random()*16,1,1,"#A8956B");
-
-  // oak leaves
-  pixelRect(48,0,16,16,"#2E7D32");
-  for(let i=0;i<25;i++) pixelRect(48+Math.random()*16,Math.random()*16,1,1,"#1B5E20");
-
+  pixelRect(32,0,16,16,'#C2B280');
+  for(let i=0;i<15;i++) pixelRect(32+Math.floor(Math.random()*16),Math.floor(Math.random()*16),1,1,'#A8956B');
+  // leaves
+  pixelRect(48,0,16,16,'#2E7D32');
+  for(let i=0;i<25;i++) pixelRect(48+Math.floor(Math.random()*16),Math.floor(Math.random()*16),1,1,'#1B5E20');
   // log
-  pixelRect(64,0,16,16,"#A0522D");
-  for(let i=0;i<10;i++) pixelRect(64+Math.random()*16,Math.random()*16,1,1,"#6D3A16");
-
+  pixelRect(64,0,16,16,'#A0522D');
+  for(let i=0;i<10;i++) pixelRect(64+Math.floor(Math.random()*16),Math.floor(Math.random()*16),1,1,'#6D3A16');
   // obsidian
-  pixelRect(80,0,16,16,"#2E003E");
-  for(let i=0;i<10;i++) pixelRect(80+Math.random()*16,Math.random()*16,1,1,"#550055");
-
-  // portal frame
-  pixelRect(96,0,16,16,"#4B0082");
-
+  pixelRect(80,0,16,16,'#2E003E');
+  for(let i=0;i<10;i++) pixelRect(80+Math.floor(Math.random()*16),Math.floor(Math.random()*16),1,1,'#550055');
+  // portal
+  pixelRect(96,0,16,16,'#4B0082');
   // enderman
-  pixelRect(112,0,16,16,"black");
-  pixelRect(116,6,8,2,"#ff55ff");
+  pixelRect(112,0,16,16,'black');
+  pixelRect(116,6,8,2,'#ff55ff');
 }
-createTextures();
+createAtlas();
 
-function drawTile(tx,ty,dx,dy){
-  ctx.drawImage(atlas,tx,ty,16,16,dx,dy,TILE,TILE);
+/* ====== Game state ====== */
+const VIEW_W = () => window.innerWidth;
+const VIEW_H = () => window.innerHeight;
+const TOTAL_TIME = 120; // seconds
+let elapsed = 0;
+let running = false;
+let lastTickSecond = -1;
+let cameraX = 0; // used for subtle sway
+let particles = [];
+let audioCtx = null;
+let beepTimer = null;
+
+/* UI elements */
+const xpFill = document.getElementById('xpFill');
+const timerEl = document.getElementById('timer');
+const startBtn = document.getElementById('startBtn');
+const pauseBtn = document.getElementById('pauseBtn');
+const restartBtn = document.getElementById('restartBtn');
+const reward = document.getElementById('reward');
+const rewardRestart = document.getElementById('rewardRestart');
+
+/* ====== Audio helpers (Safari friendly) ====== */
+function ensureAudio(){
+  if(audioCtx) return audioCtx;
+  const Ctx = window.AudioContext || window.webkitAudioContext;
+  if(!Ctx) return null;
+  audioCtx = new Ctx();
+  return audioCtx;
+}
+function makeBeep(){
+  const a = ensureAudio();
+  if(!a) return;
+  const now = a.currentTime;
+  const osc = a.createOscillator();
+  const gain = a.createGain();
+  osc.type = 'square';
+  osc.frequency.value = 700;
+  gain.gain.value = 0;
+  osc.connect(gain);
+  gain.connect(a.destination);
+  // short envelope for click
+  gain.gain.setValueAtTime(0, now);
+  gain.gain.linearRampToValueAtTime(0.08, now + 0.005);
+  gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.08);
+  osc.start(now);
+  osc.stop(now + 0.09);
 }
 
-function tickBeep(){
-  const audio = new AudioContext();
-  const osc = audio.createOscillator();
-  osc.type="square";
-  osc.frequency.value=600;
-  osc.connect(audio.destination);
-  osc.start();
-  osc.stop(audio.currentTime+0.05);
-}
-
-let particles=[];
-
-function spawnParticles(x,y){
-  for(let i=0;i<30;i++){
+/* ====== Particles ====== */
+function spawnParticles(x,y,count=28){
+  for(let i=0;i<count;i++){
     particles.push({
-      x,y,
-      vx:(Math.random()-0.5)*2,
-      vy:(Math.random()-0.5)*2,
-      life:60
+      x, y,
+      vx: (Math.random()-0.5)*2.4,
+      vy: (Math.random()-0.5)*2.4 - 0.6,
+      life: 40 + Math.floor(Math.random()*30),
+      size: 2 + Math.random()*3,
+      color: '#ff55ff'
     });
   }
 }
 
-function update(){
-  if(!running)return;
-  cameraX+=2;
-  elapsed+=1/60;
+/* ====== Controls ====== */
+function startGame(){
+  // create/resume audio on user gesture (Safari requires this)
+  const a = ensureAudio();
+  if(a && a.state === 'suspended') a.resume();
+  running = true;
+  elapsed = 0;
+  lastTickSecond = -1;
+  cameraX = 0;
+  particles = [];
+  reward.style.display = 'none';
+  startBtn.style.display = 'none';
+  pauseBtn.style.display = 'inline-block';
+  restartBtn.style.display = 'inline-block';
+  // per-second beep via setInterval (reliable across browsers)
+  if(beepTimer) clearInterval(beepTimer);
+  beepTimer = setInterval(()=>{ if(running) makeBeep(); }, 1000);
+  // ensure loop running
+  if(!animating) loop();
+}
+function pauseGame(){
+  running = false;
+  pauseBtn.style.display = 'none';
+  startBtn.textContent = 'Resume';
+  startBtn.style.display = 'inline-block';
+}
+function restartGame(){
+  running = false;
+  elapsed = 0;
+  xpFill.style.width = '0%';
+  timerEl.textContent = formatTime(TOTAL_TIME);
+  reward.style.display = 'none';
+  startBtn.textContent = 'Start';
+  startBtn.style.display = 'inline-block';
+  pauseBtn.style.display = 'none';
+  restartBtn.style.display = 'none';
+  if(beepTimer){ clearInterval(beepTimer); beepTimer = null; }
+}
 
-  let sec=Math.floor(elapsed);
-  if(sec!==lastSecond){
-    lastSecond=sec;
-    tickBeep();
+/* attach events */
+startBtn.addEventListener('click', ()=>{ startGame(); });
+pauseBtn.addEventListener('click', ()=>{ pauseGame(); });
+restartBtn.addEventListener('click', ()=>{ restartGame(); });
+rewardRestart.addEventListener('click', ()=>{ restartGame(); });
+
+/* ====== Helpers ====== */
+function formatTime(sec){
+  sec = Math.max(0, Math.ceil(sec));
+  const m = Math.floor(sec/60);
+  const s = sec%60;
+  return m + ':' + (s<10?'0':'') + s;
+}
+
+/* ====== First-person floor renderer ====== */
+function drawFirstPerson(){
+  const W = VIEW_W(), H = VIEW_H();
+  // determine biome by elapsed quarter
+  const section = TOTAL_TIME / 4;
+  const biomeIndex = Math.min(3, Math.floor(elapsed / section));
+  const skyColors = ['#87CEEB','#6FAF6F','#F4D03F','#1A001F'];
+  ctx.fillStyle = skyColors[biomeIndex] || '#87CEEB';
+  const horizon = H * 0.42;
+  ctx.fillRect(0,0,W,horizon);
+
+  // subtle moving horizon gradient
+  const g = ctx.createLinearGradient(0,horizon,0,H);
+  g.addColorStop(0, 'rgba(0,0,0,0)');
+  g.addColorStop(1, 'rgba(0,0,0,0.25)');
+  ctx.fillStyle = g;
+  ctx.fillRect(0,horizon,W,H - horizon);
+
+  // floor rows (pseudo-3D)
+  const rows = Math.min(160, Math.floor(H/2)); // more rows for larger screens
+  for(let i=0;i<rows;i++){
+    const t = i / rows; // 0 near horizon, 1 bottom
+    const y = horizon + t * (H - horizon);
+    // depth factor: near horizon small, near bottom large
+    const depth = 0.25 + t * 2.2;
+    const rowHeight = Math.max(1, Math.floor((1/depth) * 14));
+    const scale = (1/depth) * 1.6;
+    // choose tile x in atlas by biome
+    let tx = 0;
+    if(biomeIndex === 2) tx = 32; // sand
+    else if(biomeIndex === 3) tx = 80; // obsidian
+    else tx = 0; // grass
+    const tileW = 16 * scale;
+    // horizontal offset for camera sway
+    const sway = Math.sin((elapsed*0.6) + (i*0.02)) * (20 * (1 - t));
+    // draw repeated tiles across row
+    for(let x = -tileW*2; x < W + tileW*2; x += tileW){
+      const dx = Math.floor(x + (cameraX * (1 - t) * 0.3) + sway);
+      // drawImage(atlas, sx, sy, sw, sh, dx, y, dw, dh)
+      ctx.drawImage(atlas, tx, 0, 16, 16, dx, y, tileW, rowHeight);
+      // draw a thin dirt layer under the topmost rows for depth
+      if(t > 0.6){
+        ctx.drawImage(atlas, 16, 0, 16, 16, dx, y + rowHeight, tileW, Math.max(1, rowHeight*0.6));
+      }
+    }
   }
 
-  let progress=(elapsed/totalTime)*100;
-  document.getElementById("xpFill").style.width=progress+"%";
-
-  let remain=totalTime-sec;
-  let m=Math.floor(remain/60);
-  let s=remain%60;
-  document.getElementById("timer").textContent=
-    m+":"+(s<10?"0":"")+s;
-
-  if(elapsed>=totalTime){
-    running=false;
-    document.getElementById("reward").style.display="flex";
+  // trees or endermen as billboards (first-person sprites)
+  const billboardCount = 6;
+  for(let i=0;i<billboardCount;i++){
+    const depthPos = 0.2 + (i / billboardCount) * 0.8; // 0.2..1.0
+    const screenY = horizon + depthPos * (H - horizon);
+    const scale = (1 / (0.25 + depthPos * 2.2)) * 2.2;
+    const spriteW = 16 * scale;
+    const spriteH = 32 * scale;
+    // place some objects only in certain biomes
+    if(biomeIndex === 0 || biomeIndex === 1){
+      // tree: log + leaves
+      const sx = (i*137 + Math.floor(cameraX*0.2)) % (W + 200) - 100;
+      ctx.drawImage(atlas, 64, 0, 16, 16, sx, screenY - spriteH, spriteW, spriteH*0.5);
+      ctx.drawImage(atlas, 48, 0, 16, 16, sx - spriteW*0.6, screenY - spriteH - spriteH*0.4, spriteW*2, spriteH*0.9);
+    } else if(biomeIndex === 3){
+      // enderman sprite
+      const sx = (i*200 + Math.floor(cameraX*0.25)) % (W + 300) - 150;
+      ctx.drawImage(atlas, 112, 0, 16, 16, sx, screenY - spriteH, spriteW, spriteH);
+    }
   }
 
-  particles.forEach(p=>{
-    p.x+=p.vx;
-    p.y+=p.vy;
+  // portal event: spawn near end of each section
+  const tInSection = elapsed % section;
+  if(tInSection > (section - 8) && tInSection < (section - 3) && biomeIndex < 3){
+    // draw portal billboard at center
+    const centerY = horizon + 0.45 * (H - horizon);
+    const pscale = 16 * (1.2 + Math.sin(elapsed*8)*0.05);
+    ctx.drawImage(atlas, 96, 0, 16, 16, W/2 - pscale/2, centerY - pscale, pscale, pscale*2);
+    // spawn particles once per portal window
+    if(Math.floor(elapsed*10) % 12 === 0){
+      spawnParticles(W/2, centerY, 18);
+    }
+  }
+
+  // draw particles (screen-space)
+  for(let p of particles){
+    ctx.fillStyle = p.color;
+    ctx.fillRect(p.x - p.size/2, p.y - p.size/2, p.size, p.size);
+  }
+
+  // subtle vignette
+  const vign = ctx.createRadialGradient(W/2, H/2, Math.max(W,H)*0.2, W/2, H/2, Math.max(W,H)*0.8);
+  vign.addColorStop(0, 'rgba(0,0,0,0)');
+  vign.addColorStop(1, 'rgba(0,0,0,0.25)');
+  ctx.fillStyle = vign;
+  ctx.fillRect(0,0,W,H);
+}
+
+/* ====== Update loop ====== */
+let lastTime = performance.now();
+let animating = false;
+function update(dt){
+  if(!running) return;
+  elapsed += dt;
+  cameraX += dt * 40; // subtle forward motion
+  // per-second tick beep via makeBeep is handled by setInterval, but we keep lastTickSecond for UI updates
+  const sec = Math.floor(elapsed);
+  if(sec !== lastTickSecond){
+    lastTickSecond = sec;
+    // XP fill
+    const progress = Math.min(1, elapsed / TOTAL_TIME);
+    xpFill.style.width = (progress*100) + '%';
+  }
+  // update timer UI
+  const remain = Math.max(0, TOTAL_TIME - Math.floor(elapsed));
+  timerEl.textContent = formatTime(remain);
+  // particles physics
+  for(let p of particles){
+    p.x += p.vx;
+    p.y += p.vy;
+    p.vy += 0.04; // gravity
     p.life--;
-  });
-  particles=particles.filter(p=>p.life>0);
+  }
+  particles = particles.filter(p => p.life > 0);
+  // end condition
+  if(elapsed >= TOTAL_TIME){
+    running = false;
+    // stop beeps
+    if(beepTimer){ clearInterval(beepTimer); beepTimer = null; }
+    // show reward
+    reward.style.display = 'flex';
+    pauseBtn.style.display = 'none';
+    restartBtn.style.display = 'inline-block';
+    startBtn.style.display = 'none';
+  }
 }
 
 function draw(){
-  const biomeIndex=Math.min(3,Math.floor(elapsed/sectionLength));
-
-  let sky=["#87CEEB","#6FAF6F","#F4D03F","#1A001F"][biomeIndex];
-  ctx.fillStyle=sky;
-  ctx.fillRect(0,0,VIEW_W,VIEW_H);
-
-  // terrain
-  for(let x=-TILE; x<VIEW_W+TILE; x+=TILE){
-    let worldX=x+(cameraX%TILE);
-    let y=VIEW_H-TILE*3;
-
-    if(biomeIndex===2)
-      drawTile(32,0,x,y); // sand
-    else if(biomeIndex===3)
-      drawTile(80,0,x,y); // obsidian
-    else
-      drawTile(0,0,x,y); // grass
-
-    drawTile(16,0,x,y+TILE); // dirt under
-  }
-
-  // trees
-  if(biomeIndex===0||biomeIndex===1){
-    for(let i=0;i<4;i++){
-      let x=(i*300-cameraX%300);
-      drawTile(64,0,x,VIEW_H-160);
-      drawTile(48,0,x-16,VIEW_H-192);
-    }
-  }
-
-  // enderman
-  if(biomeIndex===3){
-    for(let i=0;i<3;i++){
-      let x=(i*400-cameraX%400);
-      drawTile(112,0,x,VIEW_H-160);
-    }
-  }
-
-  // portal near end of section
-  let t=elapsed%sectionLength;
-  if(t>25 && t<30 && biomeIndex<3){
-    drawTile(96,0,VIEW_W/2-16,VIEW_H/2-64);
-    spawnParticles(VIEW_W/2,VIEW_H/2);
-  }
-
-  particles.forEach(p=>{
-    ctx.fillStyle="#ff55ff";
-    ctx.fillRect(p.x,p.y,4,4);
-  });
-
-  requestAnimationFrame(loop);
+  // clear
+  ctx.fillStyle = '#000';
+  ctx.fillRect(0,0,canvas.width/DPR,canvas.height/DPR);
+  drawFirstPerson();
 }
 
-function loop(){
-  update();
+/* main loop */
+function loop(now){
+  animating = true;
+  const dt = Math.min(0.05, (now - lastTime) / 1000);
+  lastTime = now;
+  update(dt);
   draw();
+  if(running || particles.length > 0){
+    requestAnimationFrame(loop);
+  } else {
+    animating = false;
+  }
 }
 
-loop();
+/* start with UI showing initial time */
+timerEl.textContent = formatTime(TOTAL_TIME);
+
+/* small touch: allow tapping canvas to spawn particles (for testing / interaction) */
+canvas.addEventListener('pointerdown', (e)=>{
+  const rect = canvas.getBoundingClientRect();
+  const x = e.clientX - rect.left;
+  const y = e.clientY - rect.top;
+  spawnParticles(x, y, 24);
+  // ensure audio context is resumed on first gesture
+  const a = ensureAudio();
+  if(a && a.state === 'suspended') a.resume();
+});
+
+/* ensure clean up on page hide */
+window.addEventListener('pagehide', ()=>{
+  if(beepTimer) clearInterval(beepTimer);
+  if(audioCtx && audioCtx.close) audioCtx.close();
+});
 </script>
 
 </body>
