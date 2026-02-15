@@ -2,35 +2,140 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Oscar's Brushing Timer</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Oscar's Brushing Adventure</title>
 <style>
-  body { margin:0; font-family:sans-serif; background:#1a1a1a; color:#fff; display:flex; flex-direction:column; align-items:center; justify-content:center; height:100vh; }
-  #timer { font-size:48px; margin-bottom:20px; }
-  #xpBar { width:300px; height:20px; background:#333; border-radius:10px; overflow:hidden; margin-bottom:20px; }
-  #xpFill { width:0%; height:100%; background:#7CFC00; transition:width 0.1s linear; }
-  #hand { width:160px; height:160px; margin-bottom:20px; }
-  #startBtn { padding:12px 24px; font-size:18px; border:none; border-radius:8px; background:#4CAF50; color:#fff; cursor:pointer; }
-  #reward { display:none; text-align:center; margin-top:20px; }
-  #reward h2 { font-size:28px; color:#FFD700; }
+  /* ---------- Reset & Body ---------- */
+  * { box-sizing: border-box; margin:0; padding:0; }
+  body {
+    font-family: 'Segoe UI', 'Helvetica Neue', sans-serif;
+    background: linear-gradient(to top, #4caf50 0%, #87ceeb 80%);
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    min-height:100vh;
+    color:#fff;
+  }
+
+  /* ---------- Header ---------- */
+  header {
+    font-size:28px;
+    font-weight:700;
+    margin-bottom:20px;
+    text-shadow: 2px 2px 4px rgba(0,0,0,0.4);
+  }
+
+  /* ---------- Landscape Card ---------- */
+  #landscape {
+    width:90%;
+    max-width:400px;
+    height:200px;
+    background:linear-gradient(to top, #3e8e41 0%, #6fae6f 50%, #87ceeb 100%);
+    border-radius:20px;
+    box-shadow: 0 8px 20px rgba(0,0,0,0.3);
+    position:relative;
+    margin-bottom:20px;
+    overflow:hidden;
+  }
+  /* Simple blocky terrain */
+  .terrain { position:absolute; bottom:0; width:100%; height:50px; background:#8b4513; }
+  .grass { position:absolute; bottom:50px; width:100%; height:20px; background:#4caf50; }
+
+  /* ---------- Timer ---------- */
+  #timerCard {
+    background:rgba(0,0,0,0.6);
+    border-radius:16px;
+    padding:20px;
+    text-align:center;
+    margin-bottom:20px;
+    width:90%;
+    max-width:320px;
+    box-shadow: 0 6px 15px rgba(0,0,0,0.4);
+  }
+  #timer { font-size:48px; font-weight:700; margin-bottom:12px; }
+
+  /* ---------- XP Bar ---------- */
+  #xpBar {
+    width:100%;
+    height:20px;
+    background:#222;
+    border-radius:10px;
+    overflow:hidden;
+  }
+  #xpFill {
+    width:0%;
+    height:100%;
+    background:linear-gradient(to right, #7CFC00, #00FFAA);
+    transition:width 0.1s linear;
+  }
+
+  /* ---------- Hand Icon ---------- */
+  #hand {
+    width:120px;
+    height:120px;
+    margin-bottom:20px;
+    transition: transform 0.2s ease;
+  }
+
+  /* ---------- Buttons ---------- */
+  button {
+    padding:12px 24px;
+    font-size:18px;
+    font-weight:700;
+    border:none;
+    border-radius:12px;
+    cursor:pointer;
+    background:#ff9800;
+    color:#fff;
+    box-shadow:0 4px 12px rgba(0,0,0,0.3);
+    margin:4px;
+    transition: transform 0.1s ease, box-shadow 0.1s ease;
+  }
+  button:active { transform: translateY(2px); box-shadow:0 2px 6px rgba(0,0,0,0.3); }
+
+  /* ---------- Reward ---------- */
+  #reward {
+    display:none;
+    background:rgba(0,0,0,0.7);
+    padding:20px;
+    border-radius:16px;
+    text-align:center;
+    box-shadow:0 8px 20px rgba(0,0,0,0.4);
+  }
+  #reward h2 { font-size:28px; color:#FFD700; margin-bottom:12px; }
+  #reward p { font-size:18px; margin-bottom:12px; }
 </style>
 </head>
 <body>
 
-<div id="timer">2:00</div>
-<div id="xpBar"><div id="xpFill"></div></div>
+<header>🪥 Oscar's Brushing Adventure</header>
+
+<div id="landscape">
+  <div class="terrain"></div>
+  <div class="grass"></div>
+</div>
+
+<div id="timerCard">
+  <div id="timer">2:00</div>
+  <div id="xpBar"><div id="xpFill"></div></div>
+</div>
+
 <img id="hand" src="" alt="Animated brushing hand">
-<button id="startBtn">Start Brushing</button>
+
+<div>
+  <button id="startBtn">Start Brushing</button>
+  <button id="restartBtn" style="display:none;">Brush Again</button>
+</div>
 
 <div id="reward">
   <h2>🎉 Super Brusher! 🎉</h2>
   <p>Well done, Oscar! Two minutes complete!</p>
-  <button id="restartBtn">Brush Again</button>
+  <button id="closeReward">Close</button>
 </div>
 
 <script>
-// --------- Timer Setup ----------
-const TOTAL_TIME = 120; // seconds
+const TOTAL_TIME = 120;
 let elapsed = 0;
 let running = false;
 let timerInterval = null;
@@ -38,66 +143,69 @@ let timerInterval = null;
 const timerEl = document.getElementById('timer');
 const xpFill = document.getElementById('xpFill');
 const startBtn = document.getElementById('startBtn');
-const reward = document.getElementById('reward');
 const restartBtn = document.getElementById('restartBtn');
+const reward = document.getElementById('reward');
+const closeReward = document.getElementById('closeReward');
 const handImg = document.getElementById('hand');
 
-// --------- Hand Animation ----------
-let brushPhase = 0;
-function makeHandSprite() {
+// Hand sprite
+function makeHandSprite(){
   const c = document.createElement('canvas');
   c.width = 64; c.height = 64;
   const ctx = c.getContext('2d');
-  ctx.fillStyle = '#C2A476'; ctx.fillRect(20,40,24,6); // brush handle
-  ctx.fillStyle = '#fff'; ctx.fillRect(24,32,16,8);     // bristles
-  ctx.fillStyle = '#F1C27D'; ctx.fillRect(10,34,16,12);  // hand
+  ctx.fillStyle='#C2A476'; ctx.fillRect(20,40,24,6);
+  ctx.fillStyle='#fff'; ctx.fillRect(24,32,16,8);
+  ctx.fillStyle='#F1C27D'; ctx.fillRect(10,34,16,12);
   return c.toDataURL();
 }
 handImg.src = makeHandSprite();
 
-function animateHand() {
-  brushPhase += 0.15;
-  const sway = Math.sin(brushPhase) * 10;
-  handImg.style.transform = `translateX(${sway}px)`;
+// Animate hand
+let brushPhase = 0;
+function animateHand(){
+  brushPhase += 0.1;
+  handImg.style.transform = `translateX(${Math.sin(brushPhase)*15}px)`;
   if(running) requestAnimationFrame(animateHand);
 }
 
-// --------- Timer Functions ----------
-function formatTime(sec) {
-  const m = Math.floor(sec / 60);
+// Timer formatting
+function formatTime(sec){
+  const m = Math.floor(sec/60);
   const s = sec % 60;
   return m + ':' + (s<10?'0':'') + s;
 }
 
-function updateTimer() {
+// Update timer
+function updateTimer(){
   elapsed++;
   timerEl.textContent = formatTime(TOTAL_TIME - elapsed);
-  xpFill.style.width = (elapsed / TOTAL_TIME * 100) + '%';
-  if(elapsed >= TOTAL_TIME) {
+  xpFill.style.width = (elapsed/TOTAL_TIME*100)+'%';
+  if(elapsed>=TOTAL_TIME){
     clearInterval(timerInterval);
-    running = false;
-    reward.style.display = 'block';
+    running=false;
+    reward.style.display='block';
+    restartBtn.style.display='inline-block';
   }
 }
 
-function startBrushing() {
+// Start brushing
+function startBrushing(){
   if(running) return;
   running = true;
-  elapsed = 0;
+  elapsed=0;
   timerEl.textContent = formatTime(TOTAL_TIME);
-  xpFill.style.width = '0%';
-  reward.style.display = 'none';
-  startBtn.style.display = 'none';
-  timerInterval = setInterval(updateTimer, 1000);
+  xpFill.style.width='0%';
+  reward.style.display='none';
+  startBtn.style.display='none';
+  restartBtn.style.display='none';
+  timerInterval = setInterval(updateTimer,1000);
   animateHand();
 }
 
-// --------- Button Events ----------
+// Event listeners
 startBtn.addEventListener('click', startBrushing);
-restartBtn.addEventListener('click', () => {
-  startBtn.style.display = 'inline-block';
-  reward.style.display = 'none';
-});
+restartBtn.addEventListener('click', startBrushing);
+closeReward.addEventListener('click', ()=>{ reward.style.display='none'; startBtn.style.display='inline-block'; });
 </script>
 
 </body>
