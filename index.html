@@ -3,88 +3,175 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>Oscar's Toothbrushing Quest</title>
+<title>Oscar's Pixel Brushing Quest</title>
 <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
 <style>
 :root{
-  --grass:#5fbf3f;
-  --dirt:#7a4b1f;
-  --stone:#9ea7ad;
-  --diamond:#4de3ff;
-  --dark:#111;
+  --sky:#7ec0ee;
+  --grass1:#5fbf3f;
+  --grass2:#4aa52e;
+  --dirt1:#7a4b1f;
+  --dirt2:#5e3716;
+  --stone1:#9ea7ad;
+  --stone2:#7f8a90;
   --xp:#7CFC00;
 }
 
 *{
   box-sizing:border-box;
-  -webkit-tap-highlight-color: transparent;
+  -webkit-tap-highlight-color:transparent;
 }
 
 body{
   margin:0;
   font-family:'Press Start 2P', monospace;
-  background:linear-gradient(#87ceeb 40%, var(--grass) 40%);
   color:white;
+  height:100vh;
+  overflow:hidden;
   display:flex;
   justify-content:center;
   align-items:center;
-  height:100vh;
-  overflow:hidden;
+  background:
+    repeating-linear-gradient(
+      0deg,
+      var(--grass1) 0px,
+      var(--grass1) 8px,
+      var(--grass2) 8px,
+      var(--grass2) 16px
+    );
+}
+
+.sky{
+  position:absolute;
+  top:0;
+  width:100%;
+  height:40%;
+  background:
+    repeating-linear-gradient(
+      90deg,
+      var(--sky) 0px,
+      var(--sky) 16px,
+      #6bb5e5 16px,
+      #6bb5e5 32px
+    );
+}
+
+.cloud{
+  position:absolute;
+  width:80px;
+  height:32px;
+  background:white;
+  image-rendering:pixelated;
+  animation:cloudMove 40s linear infinite;
+}
+
+@keyframes cloudMove{
+  from{left:-100px;}
+  to{left:110%;}
 }
 
 .container{
+  position:relative;
   text-align:center;
   width:90%;
-  max-width:500px;
+  max-width:480px;
+  background:
+    repeating-linear-gradient(
+      45deg,
+      var(--stone1) 0px,
+      var(--stone1) 8px,
+      var(--stone2) 8px,
+      var(--stone2) 16px
+    );
+  border:8px solid black;
+  padding:20px;
+  box-shadow:0 0 0 8px #333;
 }
 
 h1{
-  font-size:16px;
-  margin-bottom:20px;
-  text-shadow:3px 3px 0px black;
+  font-size:14px;
+  margin-bottom:15px;
+  text-shadow:4px 4px black;
 }
 
 .timer{
-  font-size:40px;
+  font-size:36px;
   margin:20px 0;
-  text-shadow:4px 4px 0px black;
+  text-shadow:5px 5px black;
 }
 
 .zone{
-  margin:10px 0;
-  font-size:12px;
-  color:var(--diamond);
+  font-size:10px;
+  margin-bottom:10px;
+  color:#4de3ff;
 }
 
 button{
   font-family:'Press Start 2P', monospace;
-  background:var(--dirt);
-  border:4px solid black;
-  padding:15px;
+  background:
+    repeating-linear-gradient(
+      0deg,
+      var(--dirt1) 0px,
+      var(--dirt1) 8px,
+      var(--dirt2) 8px,
+      var(--dirt2) 16px
+    );
+  border:6px solid black;
   color:white;
+  padding:14px;
   width:100%;
-  font-size:12px;
-  margin-top:20px;
+  font-size:10px;
+  margin-top:15px;
+  box-shadow:4px 4px #000;
 }
 
 button:active{
-  transform:scale(0.95);
+  transform:translate(4px,4px);
+  box-shadow:none;
 }
 
 .xp-bar{
   width:100%;
-  height:20px;
-  background:#333;
-  border:3px solid black;
-  margin-top:20px;
+  height:18px;
+  background:#222;
+  border:4px solid black;
+  margin-top:15px;
   position:relative;
 }
 
 .xp-fill{
   height:100%;
   width:0%;
-  background:var(--xp);
+  background:
+    repeating-linear-gradient(
+      90deg,
+      var(--xp) 0px,
+      var(--xp) 8px,
+      #63d900 8px,
+      #63d900 16px
+    );
   transition:width 0.5s linear;
+}
+
+.orb{
+  position:absolute;
+  width:8px;
+  height:8px;
+  background:var(--xp);
+  animation:orbRise 2s linear forwards;
+}
+
+@keyframes orbRise{
+  to{transform:translateY(-120px);opacity:0;}
+}
+
+.warning{
+  animation:flash 0.5s infinite;
+}
+
+@keyframes flash{
+  0%,100%{filter:none;}
+  50%{filter:brightness(1.8) hue-rotate(90deg);}
 }
 
 .achievement{
@@ -93,126 +180,122 @@ button:active{
   left:50%;
   transform:translateX(-50%);
   background:black;
-  border:4px solid var(--diamond);
+  border:6px solid gold;
   padding:20px;
   display:none;
-  animation:pop 0.5s ease-out forwards;
+  text-align:center;
+  animation:pop 0.4s ease-out forwards;
 }
 
 @keyframes pop{
   from{transform:translateX(-50%) scale(0.5);}
   to{transform:translateX(-50%) scale(1);}
 }
-
-.sparkle{
-  position:absolute;
-  width:5px;
-  height:5px;
-  background:white;
-  animation:fall 2s linear forwards;
-}
-
-@keyframes fall{
-  to{transform:translateY(100vh);opacity:0;}
-}
-
-.warning{
-  animation:flash 0.5s infinite;
-}
-
-@keyframes flash{
-  0%,100%{background:linear-gradient(#87ceeb 40%, var(--grass) 40%);}
-  50%{background:red;}
-}
 </style>
 </head>
 <body>
 
+<div class="sky"></div>
+<div class="cloud" style="top:40px;"></div>
+<div class="cloud" style="top:80px; animation-duration:60s;"></div>
+
 <div class="container">
-  <h1>Oscar's Brushing Quest</h1>
+  <h1>Oscar's Tooth Quest</h1>
   <div class="timer" id="timer">02:00</div>
-  <div class="zone" id="zone">Ready to begin!</div>
-  <button id="startBtn">START QUEST</button>
+  <div class="zone" id="zone">Tap Start To Begin</div>
+  <button id="startBtn">START BRUSHING</button>
+  <button id="resetBtn" style="display:none;">RESTART QUEST</button>
   <div class="xp-bar">
     <div class="xp-fill" id="xp"></div>
   </div>
 </div>
 
 <div class="achievement" id="achievement">
-  ACHIEVEMENT UNLOCKED<br><br>
+  TREASURE UNLOCKED<br><br>
   SUPER CLEAN TEETH<br><br>
-  Oscar Levelled Up!
+  Oscar Level Up!
 </div>
 
 <script>
-let totalTime = 120;
-let timeLeft = totalTime;
+let totalTime=120;
+let timeLeft=120;
 let interval;
-const timerDisplay = document.getElementById("timer");
-const zoneDisplay = document.getElementById("zone");
-const xpFill = document.getElementById("xp");
-const achievement = document.getElementById("achievement");
-const startBtn = document.getElementById("startBtn");
 
-const zones = [
-  "Top Left Biome",
-  "Top Right Biome",
-  "Bottom Left Biome",
-  "Bottom Right Biome"
+const timer=document.getElementById("timer");
+const zone=document.getElementById("zone");
+const xp=document.getElementById("xp");
+const achievement=document.getElementById("achievement");
+const startBtn=document.getElementById("startBtn");
+const resetBtn=document.getElementById("resetBtn");
+
+const zones=[
+  "Top Left Zone",
+  "Top Right Zone",
+  "Bottom Left Zone",
+  "Bottom Right Zone"
 ];
 
-function updateDisplay(){
-  let minutes = Math.floor(timeLeft/60);
-  let seconds = timeLeft%60;
-  timerDisplay.textContent =
-    (minutes<10?"0":"")+minutes+":"+(seconds<10?"0":"")+seconds;
+function update(){
+  let m=Math.floor(timeLeft/60);
+  let s=timeLeft%60;
+  timer.textContent=(m<10?"0":"")+m+":"+(s<10?"0":"")+s;
 
-  let progress = ((totalTime-timeLeft)/totalTime)*100;
-  xpFill.style.width = progress + "%";
+  let progress=((120-timeLeft)/120)*100;
+  xp.style.width=progress+"%";
 
-  let zoneIndex = Math.floor((totalTime-timeLeft)/30);
-  if(zoneIndex < 4){
-    zoneDisplay.textContent = zones[zoneIndex];
+  let zoneIndex=Math.floor((120-timeLeft)/30);
+  if(zoneIndex<4){
+    zone.textContent=zones[zoneIndex];
   }
 
-  if(timeLeft === 10){
+  if(timeLeft===10){
     document.body.classList.add("warning");
   }
 }
 
-function createSparkle(){
-  const sparkle = document.createElement("div");
-  sparkle.className = "sparkle";
-  sparkle.style.left = Math.random()*100 + "vw";
-  sparkle.style.top = "0px";
-  document.body.appendChild(sparkle);
-  setTimeout(()=>sparkle.remove(),2000);
+function orb(){
+  const o=document.createElement("div");
+  o.className="orb";
+  o.style.left=Math.random()*window.innerWidth+"px";
+  o.style.bottom="0px";
+  document.body.appendChild(o);
+  setTimeout(()=>o.remove(),2000);
 }
 
 function finish(){
   clearInterval(interval);
-  zoneDisplay.textContent = "Quest Complete!";
   achievement.style.display="block";
+  zone.textContent="Quest Complete!";
+  startBtn.style.display="none";
+  resetBtn.style.display="block";
   if(navigator.vibrate) navigator.vibrate([200,100,200]);
   document.body.classList.remove("warning");
 }
 
-function startTimer(){
+function start(){
   startBtn.disabled=true;
-  zoneDisplay.textContent = zones[0];
   if(navigator.vibrate) navigator.vibrate(100);
-
-  interval = setInterval(()=>{
+  interval=setInterval(()=>{
     timeLeft--;
-    updateDisplay();
-    createSparkle();
-    if(timeLeft<=0){
-      finish();
-    }
+    update();
+    orb();
+    if(timeLeft<=0) finish();
   },1000);
 }
 
-startBtn.addEventListener("click", startTimer);
+function reset(){
+  timeLeft=120;
+  xp.style.width="0%";
+  achievement.style.display="none";
+  zone.textContent="Tap Start To Begin";
+  startBtn.disabled=false;
+  startBtn.style.display="block";
+  resetBtn.style.display="none";
+  timer.textContent="02:00";
+}
+
+startBtn.addEventListener("click",start);
+resetBtn.addEventListener("click",reset);
 </script>
 
 </body>
