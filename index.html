@@ -2,210 +2,91 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-<title>Minecraft Tooth Adventure</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Oscar's Minecraft Timer</title>
 <style>
-html,body{
-margin:0;
-padding:0;
-background:#000;
-overflow:hidden;
-font-family:monospace;
-touch-action:none;
-}
-canvas{
-display:block;
-}
-#startScreen,#rewardScreen{
-position:absolute;
-inset:0;
-display:flex;
-align-items:center;
-justify-content:center;
-flex-direction:column;
-background:#000;
-color:white;
-text-align:center;
-}
-button{
-padding:14px 24px;
-font-size:18px;
-border:none;
-background:#4CAF50;
-color:white;
-border-radius:6px;
-}
-#hud{
-position:absolute;
-top:10px;
-left:10px;
-right:10px;
-color:white;
-font-size:14px;
-display:flex;
-justify-content:space-between;
-pointer-events:none;
-}
-#progressBar{
-position:absolute;
-bottom:0;
-left:0;
-height:8px;
-background:#00ff66;
-width:0%;
-}
+  html, body { margin:0; padding:0; width:100%; height:100%; background:#1e1e1e; font-family: monospace; display:flex; flex-direction:column; justify-content:center; align-items:center; }
+  h1 { color:#7CFC00; margin-bottom:10px; }
+  #timer { font-size:48px; color:#fff; margin-bottom:20px; }
+  #progressContainer { width:90%; max-width:400px; height:24px; background:#333; border:2px solid #555; border-radius:8px; overflow:hidden; margin-bottom:20px; }
+  #progress { height:100%; width:0%; background:#7CFC00; transition: width 0.2s linear; }
+  #startBtn { font-size:20px; padding:12px 24px; border:none; border-radius:8px; background:#7CFC00; color:#000; cursor:pointer; }
+  #startBtn:active { transform:scale(0.95); }
+  #canvas { display:block; margin-bottom:20px; }
+  #reward { display:none; color:#fff; text-align:center; margin-top:20px; }
 </style>
 </head>
 <body>
 
-<canvas id="game"></canvas>
-
-<div id="startScreen">
-<h2>Minecraft Tooth Adventure</h2>
-<p>Brush to walk through the biomes!</p>
-<button onclick="startGame()">Start</button>
-</div>
-
-<div id="rewardScreen" style="display:none;">
-<h2>You Completed The Adventure!</h2>
-<p>Super Brusher!</p>
-</div>
-
-<div id="hud" style="display:none;">
+<h1>Oscar's Brushing Adventure</h1>
+<canvas id="canvas" width="300" height="150"></canvas>
 <div id="timer">2:00</div>
-<div id="biomeLabel">Plains</div>
+<div id="progressContainer"><div id="progress"></div></div>
+<button id="startBtn">Start Brushing</button>
+<div id="reward">
+  <h2>🎉 Well Done! 🎉</h2>
+  <p>You brushed for 2 minutes!</p>
 </div>
-<div id="progressBar"></div>
 
 <script>
-const canvas = document.getElementById("game");
-const ctx = canvas.getContext("2d");
-canvas.width = innerWidth;
-canvas.height = innerHeight;
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+const timerEl = document.getElementById('timer');
+const progressEl = document.getElementById('progress');
+const startBtn = document.getElementById('startBtn');
+const rewardEl = document.getElementById('reward');
 
-let running=false;
-let timeLeft=120;
-let distance=0;
-let biomeIndex=0;
+let totalTime = 120; // seconds
+let elapsed = 0;
+let timerInterval;
 
-const BIOMES=[
-{name:"Plains", grass:"#5fbf4f", dirt:"#8b5a2b", sky:"#87CEEB"},
-{name:"Desert", grass:"#e5d67d", dirt:"#c2b280", sky:"#f4e2a1"},
-{name:"Snow", grass:"#ffffff", dirt:"#cccccc", sky:"#dff3ff"},
-{name:"Nether", grass:"#4a0000", dirt:"#330000", sky:"#2b0000"}
-];
-
-function startGame(){
-document.getElementById("startScreen").style.display="none";
-document.getElementById("hud").style.display="flex";
-running=true;
-requestAnimationFrame(loop);
-setInterval(()=>{
-if(!running) return;
-timeLeft--;
-if(timeLeft<=0){
-running=false;
-document.getElementById("rewardScreen").style.display="flex";
-}
-},1000);
+// Simple pixel blocks for Minecraft feel
+function drawBlocks() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  const blockColors = ['#4CAF50','#8B4513','#C2B280','#2E7D32']; // grass, dirt, sand, leaves
+  for(let i=0;i<canvas.width;i+=20){
+    for(let j=0;j<canvas.height;j+=20){
+      const color = blockColors[Math.floor(Math.random()*blockColors.length)];
+      ctx.fillStyle = color;
+      ctx.fillRect(i,j,20,20);
+    }
+  }
+  // Sparkles
+  for(let i=0;i<5;i++){
+    ctx.fillStyle = '#FF55FF';
+    ctx.fillRect(Math.random()*canvas.width, Math.random()*canvas.height, 2, 2);
+  }
 }
 
-function drawSky(b){
-ctx.fillStyle=b.sky;
-ctx.fillRect(0,0,canvas.width,canvas.height);
+function updateTimer() {
+  elapsed++;
+  let remaining = totalTime - elapsed;
+  const minutes = Math.floor(remaining / 60);
+  const seconds = remaining % 60;
+  timerEl.textContent = `${minutes}:${seconds < 10 ? '0'+seconds : seconds}`;
+  progressEl.style.width = `${(elapsed/totalTime)*100}%`;
+  drawBlocks();
 
-ctx.fillStyle="white";
-for(let i=0;i<5;i++){
-ctx.fillRect((i*300+distance*0.2)%canvas.width,100,80,20);
+  if(elapsed >= totalTime){
+    clearInterval(timerInterval);
+    rewardEl.style.display = 'block';
+    startBtn.disabled = false;
+  }
 }
 
-ctx.fillStyle="#FFD700";
-ctx.fillRect(canvas.width-120,60,40,40);
-}
+startBtn.addEventListener('click', ()=>{
+  startBtn.disabled = true;
+  elapsed = 0;
+  rewardEl.style.display = 'none';
+  timerEl.textContent = '2:00';
+  progressEl.style.width = '0%';
+  drawBlocks();
+  timerInterval = setInterval(updateTimer, 1000);
+});
 
-function generateHeight(x){
-return Math.floor(4+Math.sin((x+distance)*0.02)*2);
-}
-
-function drawWorld(){
-let b=BIOMES[biomeIndex];
-let horizon=canvas.height*0.5;
-
-for(let z=1;z<60;z++){
-let scale=1/(z*0.1);
-let rowY=horizon+z*8;
-for(let x=0;x<20;x++){
-let worldX=x-10;
-let h=generateHeight(worldX);
-let blockSize=40*scale;
-let screenX=canvas.width/2 + worldX*blockSize*1.5;
-let screenY=rowY - h*blockSize;
-
-ctx.fillStyle=b.dirt;
-ctx.fillRect(screenX,screenY,blockSize,blockSize);
-
-ctx.fillStyle=b.grass;
-ctx.fillRect(screenX,screenY-blockSize,blockSize,blockSize);
-}
-}
-}
-
-function drawTrees(){
-for(let i=0;i<6;i++){
-let z=i*10+20;
-let scale=1/(z*0.1);
-let xPos=(i%3-1)*100;
-let block=40*scale;
-let y=canvas.height*0.6;
-
-ctx.fillStyle="#8b5a2b";
-ctx.fillRect(canvas.width/2+xPos*scale,y,block,block*2);
-
-ctx.fillStyle="#2e8b57";
-ctx.fillRect(canvas.width/2+xPos*scale-block,y-block*2,block*3,block*3);
-}
-}
-
-function drawPortal(){
-if(distance%2000>1800){
-ctx.fillStyle="#8000ff";
-ctx.fillRect(canvas.width/2-40,canvas.height*0.55,80,120);
-}
-}
-
-function drawHand(){
-ctx.fillStyle="#f5c6a5";
-ctx.fillRect(canvas.width/2-20,canvas.height-140,40,100);
-}
-
-function loop(){
-if(!running) return;
-distance+=4;
-
-if(distance>2000){
-biomeIndex++;
-distance=0;
-if(biomeIndex>=BIOMES.length){
-running=false;
-document.getElementById("rewardScreen").style.display="flex";
-return;
-}
-}
-
-document.getElementById("timer").innerText=
-Math.floor(timeLeft/60)+":"+(timeLeft%60).toString().padStart(2,"0");
-document.getElementById("biomeLabel").innerText=BIOMES[biomeIndex].name;
-document.getElementById("progressBar").style.width=
-((biomeIndex/BIOMES.length)*100)+"%";
-
-drawSky(BIOMES[biomeIndex]);
-drawWorld();
-drawTrees();
-drawPortal();
-drawHand();
-
-requestAnimationFrame(loop);
-}
+// Draw initial scene
+drawBlocks();
 </script>
+
 </body>
 </html>
