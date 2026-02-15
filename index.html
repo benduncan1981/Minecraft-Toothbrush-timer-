@@ -2,258 +2,165 @@
 <html lang="en">
 <head>
 <meta charset="utf-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Oscar's Minecraft Timer</title>
-<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Oscar's Brushing Adventure</title>
+<meta name="description" content="A Minecraft-style 2-minute toothbrush timer for kids with animated landscapes and rewards.">
 <style>
-  html, body {
-    margin: 0; padding: 0; height: 100%;
-    background: #87CEEB;
-    font-family: 'Press Start 2P', monospace;
-    overflow: hidden;
-  }
-  #canvas {
-    display: block;
-    width: 100vw;
-    height: 100vh;
-    image-rendering: pixelated;
-    background: linear-gradient(to bottom, #87CEEB 0%, #4CAF50 70%, #8B4513 100%);
-  }
-  .hud {
-    position: fixed;
-    top: 12px;
-    left: 50%;
-    transform: translateX(-50%);
-    display: flex;
-    gap: 12px;
-    z-index: 10;
-  }
-  .panel {
-    background: #222;
-    border: 3px solid #555;
-    padding: 12px;
-    color: #fff;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-  }
-  button {
-    font-family: 'Press Start 2P', monospace;
-    background: #555;
-    border: 2px solid #999;
-    color: #fff;
-    padding: 8px 12px;
-    cursor: pointer;
-    text-transform: uppercase;
-  }
-  button:active {
-    transform: translateY(1px);
-  }
-  #xpBar {
-    width: 240px;
-    height: 16px;
-    background: #222;
-    border: 2px solid #555;
-  }
-  #xpFill {
-    height: 100%;
-    width: 0%;
-    background: #7CFC00;
-  }
-  #rewardScreen {
-    position: fixed;
-    inset: 0;
-    background: rgba(0,0,0,0.95);
-    display: none;
-    align-items: center;
-    justify-content: center;
-    flex-direction: column;
-    z-index: 20;
-    color: #fff;
-  }
-  #rewardScreen h1 {
-    font-size: 28px;
-    margin-bottom: 12px;
-  }
+:root {
+  --accent: #7CFC00;
+  --hud-bg: rgba(0,0,0,0.6);
+  --panel-radius: 12px;
+  --font-minecraft: "Press Start 2P", monospace;
+}
+@import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+
+html, body { height: 100%; margin:0; background:#000; font-family: var(--font-minecraft); color:#fff; overflow:hidden; }
+canvas { display:block; width:100vw; height:100vh; image-rendering:pixelated; background:#000; }
+.panel { background: var(--hud-bg); border:2px solid #555; border-radius: var(--panel-radius); padding:6px 10px; display:flex; gap:8px; align-items:center; }
+#hud { position:fixed; top:12px; left:12px; z-index:50; flex-direction:column; gap:10px; }
+#controls { position:fixed; bottom:12px; left:50%; transform:translateX(-50%); z-index:51; gap:6px; display:flex; }
+button { font-family:var(--font-minecraft); font-size:10px; padding:6px 10px; border-radius:6px; border:2px solid #555; background:rgba(0,0,0,0.6); color:#fff; cursor:pointer; }
+button:active { transform:translateY(1px); }
+#timer { font-size:28px; font-weight:700; text-align:center; min-width:80px; }
+#xpBar { width:220px; height:14px; background:#222; border-radius:6px; overflow:hidden; border:2px solid #333; }
+#xpFill { height:100%; width:0%; background:var(--accent); transition: width 0.1s linear; }
+#reward { position:fixed; inset:0; display:none; align-items:center; justify-content:center; flex-direction:column; background:rgba(0,0,0,0.95); color:#fff; z-index:60; font-size:18px; text-align:center; }
+#reward button { margin-top:12px; }
 </style>
 </head>
 <body>
-<canvas id="canvas"></canvas>
 
-<div class="hud">
+<canvas id="game" aria-label="Brushing Adventure Canvas"></canvas>
+
+<div id="hud">
   <div class="panel">
-    <div>Time: <span id="timer">2:00</span></div>
+    <div id="timer">2:00</div>
   </div>
   <div class="panel">
-    <div>XP</div>
+    <div style="font-size:12px;">Progress</div>
     <div id="xpBar"><div id="xpFill"></div></div>
-  </div>
-  <div class="panel">
-    <button id="startBtn">Start</button>
-    <button id="pauseBtn" style="display:none">Pause</button>
-    <button id="resetBtn">Reset</button>
   </div>
 </div>
 
-<div id="rewardScreen">
-  <h1>Awesome Brushing!</h1>
-  <canvas id="confetti" width="300" height="300" style="background:transparent;"></canvas>
-  <button id="playAgainBtn">Play Again</button>
+<div id="controls">
+  <button id="startBtn">Start</button>
+  <button id="pauseBtn" style="display:none">Pause</button>
+  <button id="resetBtn" style="display:none">Reset</button>
+</div>
+
+<div id="reward">
+  <div style="font-size:24px; font-weight:700;">🎉 Super Brusher! 🎉</div>
+  <div style="margin-top:6px;">You've brushed for 2 minutes!</div>
+  <button id="restartReward">Play Again</button>
 </div>
 
 <script>
-const canvas = document.getElementById('canvas');
-const ctx = canvas.getContext('2d');
-let width = window.innerWidth;
-let height = window.innerHeight;
-canvas.width = width;
-canvas.height = height;
+// ----- Canvas setup -----
+const canvas = document.getElementById('game');
+const ctx = canvas.getContext('2d', { alpha: false });
+let DPR = Math.max(1, window.devicePixelRatio || 1);
+function resizeCanvas(){
+  DPR = Math.max(1, window.devicePixelRatio || 1);
+  canvas.width = Math.floor(window.innerWidth * DPR);
+  canvas.height = Math.floor(window.innerHeight * DPR);
+  canvas.style.width = window.innerWidth + 'px';
+  canvas.style.height = window.innerHeight + 'px';
+  ctx.setTransform(DPR,0,0,DPR,0,0);
+  ctx.imageSmoothingEnabled = false;
+}
+window.addEventListener('resize', resizeCanvas);
+resizeCanvas();
 
-// Timer
+// ----- Game state -----
 const TOTAL_TIME = 120;
 let elapsed = 0;
 let running = false;
-let interval = null;
+let lastSecond = -1;
 
-// HUD
+// ----- UI references -----
 const timerEl = document.getElementById('timer');
 const xpFill = document.getElementById('xpFill');
 const startBtn = document.getElementById('startBtn');
 const pauseBtn = document.getElementById('pauseBtn');
 const resetBtn = document.getElementById('resetBtn');
+const reward = document.getElementById('reward');
+const restartReward = document.getElementById('restartReward');
 
-// Reward
-const rewardScreen = document.getElementById('rewardScreen');
-const playAgainBtn = document.getElementById('playAgainBtn');
-const confettiCanvas = document.getElementById('confetti');
-const cctx = confettiCanvas.getContext('2d');
+let audioCtx=null;
+function ensureAudio(){ if(audioCtx) return audioCtx; const C = window.AudioContext||window.webkitAudioContext; if(!C) return null; audioCtx = new C(); return audioCtx; }
+function beep(){ const a=ensureAudio(); if(!a) return; const now=a.currentTime; const o=a.createOscillator(); const g=a.createGain(); o.type='square'; o.frequency.value=700; g.gain.setValueAtTime(0,now); g.gain.linearRampToValueAtTime(0.08, now+0.005); g.gain.exponentialRampToValueAtTime(0.0001, now+0.08); o.connect(g); g.connect(a.destination); o.start(now); o.stop(now+0.09); }
 
-// Landscape blocks
-function drawLandscape() {
-  const blockSize = 16;
-  for(let y = height*0.7; y < height; y += blockSize){
-    for(let x = 0; x < width; x += blockSize){
-      ctx.fillStyle = '#8B4513';
-      ctx.fillRect(x, y, blockSize, blockSize);
-    }
+// ----- Controls -----
+function startGame(){ 
+  const a=ensureAudio(); if(a&&a.state==='suspended') a.resume();
+  running=true; elapsed=0; lastSecond=-1;
+  startBtn.style.display='none'; pauseBtn.style.display='inline-block'; resetBtn.style.display='inline-block';
+  requestAnimationFrame(loop);
+}
+function pauseGame(){ running=false; pauseBtn.style.display='none'; startBtn.textContent='Resume'; startBtn.style.display='inline-block'; }
+function resetGame(){ running=false; elapsed=0; lastSecond=-1; timerEl.textContent=formatTime(TOTAL_TIME); xpFill.style.width='0%'; startBtn.textContent='Start'; startBtn.style.display='inline-block'; pauseBtn.style.display='none'; resetBtn.style.display='none'; reward.style.display='none'; }
+startBtn.addEventListener('click',()=>{ startGame(); });
+pauseBtn.addEventListener('click',()=>{ pauseGame(); });
+resetBtn.addEventListener('click',()=>{ resetGame(); });
+restartReward.addEventListener('click',()=>{ resetGame(); startGame(); });
+
+// ----- Helpers -----
+function formatTime(sec){ sec=Math.max(0, Math.ceil(sec)); const m=Math.floor(sec/60); const s=sec%60; return m+':' + (s<10?'0':'') + s; }
+
+// ----- Simple landscape rendering -----
+function drawLandscape(){
+  const W=canvas.width/DPR;
+  const H=canvas.height/DPR;
+  // sky
+  ctx.fillStyle='#87CEEB';
+  ctx.fillRect(0,0,W,H*0.4);
+  // sun
+  ctx.fillStyle='#FFD700'; ctx.beginPath(); ctx.arc(W*0.85,H*0.15,20,0,Math.PI*2); ctx.fill();
+  // ground
+  ctx.fillStyle='#4CAF50'; ctx.fillRect(0,H*0.4,W,H*0.6);
+  // simple trees
+  for(let i=0;i<5;i++){
+    const x=(i*100+elapsed*10)%W; const y=H*0.4; ctx.fillStyle='#8B4513'; ctx.fillRect(x,y-40,10,40); ctx.fillStyle='#2E7D32'; ctx.beginPath(); ctx.moveTo(x-15,y-40); ctx.lineTo(x+25,y-40); ctx.lineTo(x+5,y-70); ctx.closePath(); ctx.fill();
   }
-  for(let y = height*0.5; y < height*0.7; y += blockSize){
-    for(let x = 0; x < width; x += blockSize){
-      ctx.fillStyle = '#4CAF50';
-      ctx.fillRect(x, y, blockSize, blockSize);
-    }
+  // flowers
+  for(let i=0;i<10;i++){
+    const x=(i*60+elapsed*15)%W; const y=H*0.4+Math.random()*100; ctx.fillStyle=['#FF0000','#FF69B4','#FFFF00'][i%3]; ctx.fillRect(x,y,4,4);
   }
 }
 
-// Hand sprite
-function drawHand() {
-  ctx.fillStyle = '#F1C27D';
-  ctx.fillRect(width/2 - 12, height - 80, 24, 40);
-  ctx.fillStyle = '#fff';
-  ctx.fillRect(width/2 - 12, height - 90, 24, 10);
+// ----- Update -----
+let lastTime=performance.now();
+function update(dt){
+  if(!running) return;
+  elapsed+=dt;
+  const sec=Math.floor(elapsed);
+  if(sec!==lastSecond){
+    lastSecond=sec;
+    beep();
+    // flash last 10 seconds
+    if(TOTAL_TIME-sec<=10){
+      timerEl.style.color=(sec%2===0?'#FF0000':'#fff');
+    } else timerEl.style.color='#fff';
+    timerEl.textContent=formatTime(TOTAL_TIME-sec);
+    const progress=Math.min(1, elapsed/TOTAL_TIME);
+    xpFill.style.width=(progress*100)+'%';
+  }
+  if(elapsed>=TOTAL_TIME){ running=false; showReward(); }
 }
 
-// Update timer
-function updateTimer(){
-  elapsed += 1;
-  if(elapsed > TOTAL_TIME){
-    clearInterval(interval);
-    running = false;
-    showReward();
-  }
-  const remain = TOTAL_TIME - elapsed;
-  const m = Math.floor(remain/60);
-  const s = remain%60;
-  timerEl.textContent = `${m}:${s<10?'0':''}${s}`;
-  xpFill.style.width = (elapsed/TOTAL_TIME*100)+'%';
-}
+// ----- Reward -----
+function showReward(){ reward.style.display='flex'; }
 
-// Render loop
-function render(){
-  ctx.clearRect(0,0,width,height);
-  drawLandscape();
-  drawHand();
-  requestAnimationFrame(render);
-}
-render();
+// ----- Render -----
+function draw(){ ctx.clearRect(0,0,canvas.width/DPR,canvas.height/DPR); drawLandscape(); }
 
-// Controls
-startBtn.onclick = ()=>{
-  if(!running){
-    running = true;
-    startBtn.style.display='none';
-    pauseBtn.style.display='inline-block';
-    interval = setInterval(updateTimer,1000);
-  }
-};
-pauseBtn.onclick = ()=>{
-  if(running){
-    running = false;
-    pauseBtn.style.display='none';
-    startBtn.style.display='inline-block';
-    clearInterval(interval);
-  }
-};
-resetBtn.onclick = ()=>{
-  running = false;
-  clearInterval(interval);
-  elapsed = 0;
-  timerEl.textContent = '2:00';
-  xpFill.style.width = '0%';
-  startBtn.style.display='inline-block';
-  pauseBtn.style.display='none';
-};
-
-// Reward screen
-function showReward(){
-  rewardScreen.style.display='flex';
-  startConfetti();
+function loop(now){
+  const dt=Math.min(0.05,(now-lastTime)/1000);
+  lastTime=now;
+  update(dt);
+  draw();
+  if(running) requestAnimationFrame(loop);
 }
-playAgainBtn.onclick = ()=>{
-  rewardScreen.style.display='none';
-  elapsed = 0;
-  timerEl.textContent = '2:00';
-  xpFill.style.width = '0%';
-  running = false;
-};
-
-// Confetti
-let confettiParticles = [];
-function startConfetti(){
-  confettiParticles = [];
-  for(let i=0;i<150;i++){
-    confettiParticles.push({
-      x: Math.random()*confettiCanvas.width,
-      y: Math.random()*confettiCanvas.height,
-      vx: (Math.random()-0.5)*4,
-      vy: Math.random()*-4-2,
-      size: Math.random()*4+2,
-      color: ['#7CFC00','#55f','#FFEE00','#FF5555'][Math.floor(Math.random()*4)]
-    });
-  }
-  requestAnimationFrame(drawConfetti);
-}
-function drawConfetti(){
-  cctx.clearRect(0,0,confettiCanvas.width,confettiCanvas.height);
-  for(let p of confettiParticles){
-    cctx.fillStyle = p.color;
-    cctx.fillRect(p.x,p.y,p.size,p.size);
-    p.x += p.vx;
-    p.y += p.vy;
-    if(p.y < 0) p.y = confettiCanvas.height;
-  }
-  if(rewardScreen.style.display==='flex'){
-    requestAnimationFrame(drawConfetti);
-  }
-}
-
-// Resize
-window.addEventListener('resize', ()=>{
-  width = window.innerWidth;
-  height = window.innerHeight;
-  canvas.width = width;
-  canvas.height = height;
-});
 </script>
 </body>
 </html>
