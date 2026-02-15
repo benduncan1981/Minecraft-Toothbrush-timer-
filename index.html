@@ -1,248 +1,259 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Oscar's Brushing Adventure</title>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Oscar's Minecraft Timer</title>
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
 <style>
-  * { box-sizing: border-box; margin:0; padding:0; }
-  body {
-    font-family: 'Segoe UI', sans-serif;
-    background: linear-gradient(to top, #4caf50 0%, #87ceeb 80%);
-    display:flex;
-    flex-direction:column;
-    align-items:center;
-    justify-content:center;
-    min-height:100vh;
-    color:#fff;
+  html, body {
+    margin: 0; padding: 0; height: 100%;
+    background: #87CEEB;
+    font-family: 'Press Start 2P', monospace;
+    overflow: hidden;
   }
-
-  header {
-    font-size:28px;
-    font-weight:700;
-    margin-bottom:20px;
-    text-shadow: 2px 2px 4px rgba(0,0,0,0.4);
+  #canvas {
+    display: block;
+    width: 100vw;
+    height: 100vh;
+    image-rendering: pixelated;
+    background: linear-gradient(to bottom, #87CEEB 0%, #4CAF50 70%, #8B4513 100%);
   }
-
-  #landscape {
-    width:90%;
-    max-width:400px;
-    height:200px;
-    background:linear-gradient(to top, #3e8e41 0%, #6fae6f 50%, #87ceeb 100%);
-    border-radius:20px;
-    box-shadow: 0 8px 20px rgba(0,0,0,0.3);
-    position:relative;
-    margin-bottom:20px;
-    overflow:hidden;
-    border:3px solid #2c6f2c;
+  .hud {
+    position: fixed;
+    top: 12px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    gap: 12px;
+    z-index: 10;
   }
-  .terrain { position:absolute; bottom:0; width:100%; height:50px; background:#8b4513; border-top:2px solid #5d2b0a; }
-  .grass { position:absolute; bottom:50px; width:100%; height:20px; background:#4caf50; border-top:2px solid #388e3c; }
-
-  #timerCard {
-    background:rgba(0,0,0,0.6);
-    border-radius:16px;
-    padding:20px;
-    text-align:center;
-    margin-bottom:20px;
-    width:90%;
-    max-width:320px;
-    box-shadow: 0 6px 15px rgba(0,0,0,0.4);
-    border:3px solid #7cfc00;
+  .panel {
+    background: #222;
+    border: 3px solid #555;
+    padding: 12px;
+    color: #fff;
+    display: flex;
+    align-items: center;
+    gap: 8px;
   }
-  #timer { font-size:48px; font-weight:700; margin-bottom:12px; }
-
+  button {
+    font-family: 'Press Start 2P', monospace;
+    background: #555;
+    border: 2px solid #999;
+    color: #fff;
+    padding: 8px 12px;
+    cursor: pointer;
+    text-transform: uppercase;
+  }
+  button:active {
+    transform: translateY(1px);
+  }
   #xpBar {
-    width:100%;
-    height:20px;
-    background:#222;
-    border-radius:10px;
-    overflow:hidden;
-    border:2px solid #555;
+    width: 240px;
+    height: 16px;
+    background: #222;
+    border: 2px solid #555;
   }
   #xpFill {
-    width:0%;
-    height:100%;
-    background:linear-gradient(to right, #7CFC00, #00FFAA);
-    transition:width 0.1s linear;
+    height: 100%;
+    width: 0%;
+    background: #7CFC00;
   }
-
-  #hand {
-    width:120px;
-    height:120px;
-    margin-bottom:20px;
-    transition: transform 0.2s ease;
+  #rewardScreen {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.95);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    z-index: 20;
+    color: #fff;
   }
-
-  button {
-    padding:12px 20px;
-    font-size:18px;
-    font-weight:700;
-    border:none;
-    border-radius:12px;
-    cursor:pointer;
-    background:#ff9800;
-    color:#fff;
-    box-shadow:0 4px 12px rgba(0,0,0,0.3);
-    margin:4px;
-    transition: transform 0.1s ease, box-shadow 0.1s ease;
-    border:2px solid #ffa726;
+  #rewardScreen h1 {
+    font-size: 28px;
+    margin-bottom: 12px;
   }
-  button:active { transform: translateY(2px); box-shadow:0 2px 6px rgba(0,0,0,0.3); }
-
-  #reward {
-    display:none;
-    background:rgba(0,0,0,0.7);
-    padding:20px;
-    border-radius:16px;
-    text-align:center;
-    box-shadow:0 8px 20px rgba(0,0,0,0.4);
-    position:fixed;
-    top:50%;
-    left:50%;
-    transform:translate(-50%,-50%);
-    width:80%;
-    max-width:360px;
-    border:3px solid #FFD700;
-  }
-  #reward h2 { font-size:28px; color:#FFD700; margin-bottom:12px; }
-  #reward p { font-size:18px; margin-bottom:12px; }
-
-  canvas { position:absolute; pointer-events:none; top:0; left:0; width:100%; height:100%; }
 </style>
 </head>
 <body>
+<canvas id="canvas"></canvas>
 
-<header>🪥 Oscar's Brushing Adventure</header>
-
-<div id="landscape">
-  <div class="terrain"></div>
-  <div class="grass"></div>
+<div class="hud">
+  <div class="panel">
+    <div>Time: <span id="timer">2:00</span></div>
+  </div>
+  <div class="panel">
+    <div>XP</div>
+    <div id="xpBar"><div id="xpFill"></div></div>
+  </div>
+  <div class="panel">
+    <button id="startBtn">Start</button>
+    <button id="pauseBtn" style="display:none">Pause</button>
+    <button id="resetBtn">Reset</button>
+  </div>
 </div>
 
-<div id="timerCard">
-  <div id="timer">2:00</div>
-  <div id="xpBar"><div id="xpFill"></div></div>
+<div id="rewardScreen">
+  <h1>Awesome Brushing!</h1>
+  <canvas id="confetti" width="300" height="300" style="background:transparent;"></canvas>
+  <button id="playAgainBtn">Play Again</button>
 </div>
-
-<img id="hand" src="" alt="Animated brushing hand">
-
-<div>
-  <button id="startBtn">Start</button>
-  <button id="pauseBtn" style="display:none;">Pause</button>
-  <button id="resetBtn" style="display:none;">Reset</button>
-</div>
-
-<div id="reward">
-  <h2>🎉 Super Brusher! 🎉</h2>
-  <p>Two minutes complete! Amazing job, Oscar!</p>
-  <button id="closeReward">Close</button>
-</div>
-
-<canvas id="confetti"></canvas>
 
 <script>
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+let width = window.innerWidth;
+let height = window.innerHeight;
+canvas.width = width;
+canvas.height = height;
+
+// Timer
 const TOTAL_TIME = 120;
 let elapsed = 0;
 let running = false;
-let timerInterval = null;
+let interval = null;
 
+// HUD
 const timerEl = document.getElementById('timer');
 const xpFill = document.getElementById('xpFill');
 const startBtn = document.getElementById('startBtn');
 const pauseBtn = document.getElementById('pauseBtn');
 const resetBtn = document.getElementById('resetBtn');
-const reward = document.getElementById('reward');
-const closeReward = document.getElementById('closeReward');
-const handImg = document.getElementById('hand');
-const canvas = document.getElementById('confetti');
-const ctx = canvas.getContext('2d');
 
-function resizeCanvas(){ canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
-window.addEventListener('resize', resizeCanvas);
-resizeCanvas();
+// Reward
+const rewardScreen = document.getElementById('rewardScreen');
+const playAgainBtn = document.getElementById('playAgainBtn');
+const confettiCanvas = document.getElementById('confetti');
+const cctx = confettiCanvas.getContext('2d');
+
+// Landscape blocks
+function drawLandscape() {
+  const blockSize = 16;
+  for(let y = height*0.7; y < height; y += blockSize){
+    for(let x = 0; x < width; x += blockSize){
+      ctx.fillStyle = '#8B4513';
+      ctx.fillRect(x, y, blockSize, blockSize);
+    }
+  }
+  for(let y = height*0.5; y < height*0.7; y += blockSize){
+    for(let x = 0; x < width; x += blockSize){
+      ctx.fillStyle = '#4CAF50';
+      ctx.fillRect(x, y, blockSize, blockSize);
+    }
+  }
+}
 
 // Hand sprite
-function makeHandSprite(){
-  const c = document.createElement('canvas');
-  c.width=64; c.height=64;
-  const ctx=c.getContext('2d');
-  ctx.fillStyle='#C2A476'; ctx.fillRect(20,40,24,6);
-  ctx.fillStyle='#fff'; ctx.fillRect(24,32,16,8);
-  ctx.fillStyle='#F1C27D'; ctx.fillRect(10,34,16,12);
-  return c.toDataURL();
+function drawHand() {
+  ctx.fillStyle = '#F1C27D';
+  ctx.fillRect(width/2 - 12, height - 80, 24, 40);
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(width/2 - 12, height - 90, 24, 10);
 }
-handImg.src = makeHandSprite();
 
-let brushPhase=0;
-function animateHand(){ brushPhase+=0.1; handImg.style.transform=`translateX(${Math.sin(brushPhase)*15}px)`; if(running) requestAnimationFrame(animateHand); }
-
-function formatTime(sec){ const m=Math.floor(sec/60); const s=sec%60; return m + ':' + (s<10?'0':'') + s; }
-
+// Update timer
 function updateTimer(){
-  elapsed++;
-  timerEl.textContent = formatTime(TOTAL_TIME - elapsed);
+  elapsed += 1;
+  if(elapsed > TOTAL_TIME){
+    clearInterval(interval);
+    running = false;
+    showReward();
+  }
+  const remain = TOTAL_TIME - elapsed;
+  const m = Math.floor(remain/60);
+  const s = remain%60;
+  timerEl.textContent = `${m}:${s<10?'0':''}${s}`;
   xpFill.style.width = (elapsed/TOTAL_TIME*100)+'%';
-  if(elapsed>=TOTAL_TIME){ stopBrushing(); showReward(); startConfetti(); }
 }
 
-function startBrushing(){
-  if(running) return;
-  running=true; elapsed=0;
-  timerEl.textContent = formatTime(TOTAL_TIME);
-  xpFill.style.width='0%';
-  reward.style.display='none';
-  startBtn.style.display='none'; pauseBtn.style.display='inline-block'; resetBtn.style.display='inline-block';
-  timerInterval=setInterval(updateTimer,1000);
-  animateHand();
+// Render loop
+function render(){
+  ctx.clearRect(0,0,width,height);
+  drawLandscape();
+  drawHand();
+  requestAnimationFrame(render);
 }
+render();
 
-function pauseBrushing(){ running=false; clearInterval(timerInterval); startBtn.style.display='inline-block'; pauseBtn.style.display='none'; }
+// Controls
+startBtn.onclick = ()=>{
+  if(!running){
+    running = true;
+    startBtn.style.display='none';
+    pauseBtn.style.display='inline-block';
+    interval = setInterval(updateTimer,1000);
+  }
+};
+pauseBtn.onclick = ()=>{
+  if(running){
+    running = false;
+    pauseBtn.style.display='none';
+    startBtn.style.display='inline-block';
+    clearInterval(interval);
+  }
+};
+resetBtn.onclick = ()=>{
+  running = false;
+  clearInterval(interval);
+  elapsed = 0;
+  timerEl.textContent = '2:00';
+  xpFill.style.width = '0%';
+  startBtn.style.display='inline-block';
+  pauseBtn.style.display='none';
+};
 
-function resetBrushing(){ running=false; clearInterval(timerInterval); elapsed=0; timerEl.textContent=formatTime(TOTAL_TIME); xpFill.style.width='0%'; startBtn.style.display='inline-block'; pauseBtn.style.display='none'; resetBtn.style.display='none'; }
+// Reward screen
+function showReward(){
+  rewardScreen.style.display='flex';
+  startConfetti();
+}
+playAgainBtn.onclick = ()=>{
+  rewardScreen.style.display='none';
+  elapsed = 0;
+  timerEl.textContent = '2:00';
+  xpFill.style.width = '0%';
+  running = false;
+};
 
-function stopBrushing(){ running=false; clearInterval(timerInterval); pauseBtn.style.display='none'; }
-
-startBtn.addEventListener('click',startBrushing);
-pauseBtn.addEventListener('click',pauseBrushing);
-resetBtn.addEventListener('click',resetBrushing);
-closeReward.addEventListener('click',()=>{ reward.style.display='none'; });
-
-/* ---------- Confetti ---------- */
-let confettiParticles=[];
+// Confetti
+let confettiParticles = [];
 function startConfetti(){
-  confettiParticles=[];
+  confettiParticles = [];
   for(let i=0;i<150;i++){
     confettiParticles.push({
-      x:Math.random()*canvas.width,
-      y:Math.random()*canvas.height-100,
-      r:Math.random()*6+4,
-      d:Math.random()*30,
-      color:`hsl(${Math.random()*360}, 100%, 60%)`,
-      tilt:Math.random()*10-10,
-      tiltAngleIncrement:Math.random()*0.07+0.05
+      x: Math.random()*confettiCanvas.width,
+      y: Math.random()*confettiCanvas.height,
+      vx: (Math.random()-0.5)*4,
+      vy: Math.random()*-4-2,
+      size: Math.random()*4+2,
+      color: ['#7CFC00','#55f','#FFEE00','#FF5555'][Math.floor(Math.random()*4)]
     });
   }
   requestAnimationFrame(drawConfetti);
 }
-
 function drawConfetti(){
-  ctx.clearRect(0,0,canvas.width,canvas.height);
-  for(let i=0;i<confettiParticles.length;i++){
-    let p=confettiParticles[i];
-    ctx.fillStyle=p.color;
-    ctx.beginPath();
-    ctx.moveTo(p.x + p.tilt, p.y);
-    ctx.lineTo(p.x + p.tilt + p.r/2, p.y + p.r);
-    ctx.lineTo(p.x + p.tilt - p.r/2, p.y + p.r);
-    ctx.closePath();
-    ctx.fill();
-    p.tilt+=p.tiltAngleIncrement;
-    p.y+=Math.cos(p.d)+3;
-    if(p.y>canvas.height){ p.y=-10; p.x=Math.random()*canvas.width; }
+  cctx.clearRect(0,0,confettiCanvas.width,confettiCanvas.height);
+  for(let p of confettiParticles){
+    cctx.fillStyle = p.color;
+    cctx.fillRect(p.x,p.y,p.size,p.size);
+    p.x += p.vx;
+    p.y += p.vy;
+    if(p.y < 0) p.y = confettiCanvas.height;
   }
-  requestAnimationFrame(drawConfetti);
+  if(rewardScreen.style.display==='flex'){
+    requestAnimationFrame(drawConfetti);
+  }
 }
+
+// Resize
+window.addEventListener('resize', ()=>{
+  width = window.innerWidth;
+  height = window.innerHeight;
+  canvas.width = width;
+  canvas.height = height;
+});
 </script>
 </body>
 </html>
