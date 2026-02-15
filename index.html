@@ -5,51 +5,42 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Minecraft Brushing Adventure</title>
 <style>
-body {
-  margin: 0;
-  background: black;
-  overflow: hidden;
-  font-family: monospace;
-  color: white;
+html,body{
+  margin:0;
+  padding:0;
+  overflow:hidden;
+  background:#000;
+  font-family:monospace;
 }
-
-#game {
-  display: block;
+canvas{ display:block; image-rendering: pixelated; }
+#ui{
+  position:absolute;
+  top:10px;
+  left:10px;
+  right:10px;
+  color:white;
 }
-
-#ui {
-  position: absolute;
-  top: 10px;
-  left: 10px;
-  right: 10px;
+#xpBar{
+  height:14px;
+  border:2px solid #555;
+  background:#222;
 }
-
-#progressBar {
-  height: 12px;
-  background: #222;
-  border: 2px solid #555;
+#xpFill{
+  height:100%;
+  width:0%;
+  background:limegreen;
 }
-
-#progressFill {
-  height: 100%;
-  width: 0%;
-  background: limegreen;
-}
-
-#timer {
-  margin-top: 6px;
-  font-size: 16px;
-}
-
-#reward {
-  position: absolute;
-  inset: 0;
-  background: black;
-  display: none;
-  align-items: center;
-  justify-content: center;
-  flex-direction: column;
-  font-size: 22px;
+#timer{ margin-top:6px; }
+#reward{
+  position:absolute;
+  inset:0;
+  display:none;
+  align-items:center;
+  justify-content:center;
+  flex-direction:column;
+  background:black;
+  color:white;
+  font-size:22px;
 }
 </style>
 </head>
@@ -58,137 +49,200 @@ body {
 <canvas id="game"></canvas>
 
 <div id="ui">
-  <div id="progressBar"><div id="progressFill"></div></div>
+  <div id="xpBar"><div id="xpFill"></div></div>
   <div id="timer">2:00</div>
 </div>
 
 <div id="reward">
-  <div>🏆 Brushing Complete!</div>
-  <div>You travelled all biomes!</div>
+  <div>Achievement Unlocked</div>
+  <div>Super Brusher</div>
 </div>
 
 <script>
 const canvas = document.getElementById("game");
 const ctx = canvas.getContext("2d");
-canvas.width = innerWidth;
-canvas.height = innerHeight;
+const dpr = window.devicePixelRatio || 1;
+canvas.width = innerWidth * dpr;
+canvas.height = innerHeight * dpr;
+canvas.style.width = innerWidth + "px";
+canvas.style.height = innerHeight + "px";
+ctx.scale(dpr,dpr);
+ctx.imageSmoothingEnabled = false;
 
-let totalTime = 120;
+const VIEW_W = innerWidth;
+const VIEW_H = innerHeight;
+
+const totalTime = 120;
 let elapsed = 0;
-let speed = 2;
-let worldX = 0;
-let currentBiome = 0;
-let sectionLength = totalTime / 4;
+let lastSecond = -1;
 let running = true;
+let cameraX = 0;
 
-const biomes = [
-  { sky:"#87CEEB", ground:"#4CAF50" },   // Plains
-  { sky:"#78A7FF", ground:"#228B22" },   // Forest
-  { sky:"#F4D03F", ground:"#C2B280" },   // Desert
-  { sky:"#3C1E4B", ground:"#4B0082" }    // End
-];
+const TILE = 32;
+const BASE = 16;
+const SCALE = TILE/BASE;
+const sectionLength = totalTime/4;
 
-function drawSun() {
-  ctx.fillStyle = "yellow";
-  ctx.beginPath();
-  ctx.arc(canvas.width - 100, 100, 40, 0, Math.PI*2);
-  ctx.fill();
+const atlas = document.createElement("canvas");
+atlas.width = 128;
+atlas.height = 128;
+const actx = atlas.getContext("2d");
+actx.imageSmoothingEnabled=false;
+
+function pixelRect(x,y,w,h,c){
+  actx.fillStyle=c;
+  actx.fillRect(x,y,w,h);
 }
 
-function drawCloud(x,y) {
-  ctx.fillStyle = "white";
-  ctx.fillRect(x, y, 60, 20);
-  ctx.fillRect(x+20, y-10, 60, 20);
+function createTextures(){
+  // grass top
+  pixelRect(0,0,16,16,"#4CAF50");
+  for(let i=0;i<20;i++) pixelRect(Math.random()*16,Math.random()*16,1,1,"#388E3C");
+
+  // dirt
+  pixelRect(16,0,16,16,"#8B4513");
+  for(let i=0;i<20;i++) pixelRect(16+Math.random()*16,Math.random()*16,1,1,"#5D3311");
+
+  // sand
+  pixelRect(32,0,16,16,"#C2B280");
+  for(let i=0;i<15;i++) pixelRect(32+Math.random()*16,Math.random()*16,1,1,"#A8956B");
+
+  // oak leaves
+  pixelRect(48,0,16,16,"#2E7D32");
+  for(let i=0;i<25;i++) pixelRect(48+Math.random()*16,Math.random()*16,1,1,"#1B5E20");
+
+  // log
+  pixelRect(64,0,16,16,"#A0522D");
+  for(let i=0;i<10;i++) pixelRect(64+Math.random()*16,Math.random()*16,1,1,"#6D3A16");
+
+  // obsidian
+  pixelRect(80,0,16,16,"#2E003E");
+  for(let i=0;i<10;i++) pixelRect(80+Math.random()*16,Math.random()*16,1,1,"#550055");
+
+  // portal frame
+  pixelRect(96,0,16,16,"#4B0082");
+
+  // enderman
+  pixelRect(112,0,16,16,"black");
+  pixelRect(116,6,8,2,"#ff55ff");
+}
+createTextures();
+
+function drawTile(tx,ty,dx,dy){
+  ctx.drawImage(atlas,tx,ty,16,16,dx,dy,TILE,TILE);
 }
 
-function drawTree(x) {
-  ctx.fillStyle = "#8B4513";
-  ctx.fillRect(x, canvas.height-200, 20, 100);
-  ctx.fillStyle = "green";
-  ctx.fillRect(x-30, canvas.height-250, 80, 80);
-}
-
-function drawCactus(x) {
-  ctx.fillStyle = "green";
-  ctx.fillRect(x, canvas.height-180, 30, 120);
-}
-
-function drawEnderman(x) {
-  ctx.fillStyle = "black";
-  ctx.fillRect(x, canvas.height-220, 30, 120);
-  ctx.fillStyle = "pink";
-  ctx.fillRect(x+5, canvas.height-200, 20, 10);
-}
-
-function drawPortal() {
-  ctx.fillStyle = "purple";
-  ctx.fillRect(canvas.width/2 - 60, canvas.height/2 - 100, 120, 200);
-}
-
-function update() {
-  if (!running) return;
-
-  worldX += speed;
-  elapsed += 1/60;
-
-  if (Math.floor(elapsed) % 1 === 0) beep();
-
-  let progress = (elapsed / totalTime) * 100;
-  document.getElementById("progressFill").style.width = progress + "%";
-
-  let remaining = totalTime - Math.floor(elapsed);
-  let mins = Math.floor(remaining / 60);
-  let secs = remaining % 60;
-  document.getElementById("timer").textContent =
-    mins + ":" + (secs<10?"0":"") + secs;
-
-  currentBiome = Math.floor(elapsed / sectionLength);
-
-  if (elapsed >= totalTime) {
-    running = false;
-    document.getElementById("reward").style.display = "flex";
-  }
-}
-
-function beep() {
+function tickBeep(){
   const audio = new AudioContext();
   const osc = audio.createOscillator();
-  osc.type = "square";
-  osc.frequency.value = 600;
+  osc.type="square";
+  osc.frequency.value=600;
   osc.connect(audio.destination);
   osc.start();
-  osc.stop(audio.currentTime + 0.05);
+  osc.stop(audio.currentTime+0.05);
 }
 
-function draw() {
-  let biome = biomes[currentBiome] || biomes[3];
+let particles=[];
 
-  ctx.fillStyle = biome.sky;
-  ctx.fillRect(0,0,canvas.width,canvas.height);
+function spawnParticles(x,y){
+  for(let i=0;i<30;i++){
+    particles.push({
+      x,y,
+      vx:(Math.random()-0.5)*2,
+      vy:(Math.random()-0.5)*2,
+      life:60
+    });
+  }
+}
 
-  drawSun();
-  drawCloud(100 - worldX*0.2,100);
-  drawCloud(400 - worldX*0.2,150);
+function update(){
+  if(!running)return;
+  cameraX+=2;
+  elapsed+=1/60;
 
-  ctx.fillStyle = biome.ground;
-  ctx.fillRect(0,canvas.height-120,canvas.width,120);
-
-  for (let i=0;i<10;i++) {
-    let x = i*300 - worldX%300;
-    if (currentBiome === 0) drawTree(x);
-    if (currentBiome === 1) drawTree(x);
-    if (currentBiome === 2) drawCactus(x);
-    if (currentBiome === 3) drawEnderman(x);
+  let sec=Math.floor(elapsed);
+  if(sec!==lastSecond){
+    lastSecond=sec;
+    tickBeep();
   }
 
-  if (elapsed > sectionLength && elapsed < sectionLength+3) {
-    drawPortal();
+  let progress=(elapsed/totalTime)*100;
+  document.getElementById("xpFill").style.width=progress+"%";
+
+  let remain=totalTime-sec;
+  let m=Math.floor(remain/60);
+  let s=remain%60;
+  document.getElementById("timer").textContent=
+    m+":"+(s<10?"0":"")+s;
+
+  if(elapsed>=totalTime){
+    running=false;
+    document.getElementById("reward").style.display="flex";
   }
+
+  particles.forEach(p=>{
+    p.x+=p.vx;
+    p.y+=p.vy;
+    p.life--;
+  });
+  particles=particles.filter(p=>p.life>0);
+}
+
+function draw(){
+  const biomeIndex=Math.min(3,Math.floor(elapsed/sectionLength));
+
+  let sky=["#87CEEB","#6FAF6F","#F4D03F","#1A001F"][biomeIndex];
+  ctx.fillStyle=sky;
+  ctx.fillRect(0,0,VIEW_W,VIEW_H);
+
+  // terrain
+  for(let x=-TILE; x<VIEW_W+TILE; x+=TILE){
+    let worldX=x+(cameraX%TILE);
+    let y=VIEW_H-TILE*3;
+
+    if(biomeIndex===2)
+      drawTile(32,0,x,y); // sand
+    else if(biomeIndex===3)
+      drawTile(80,0,x,y); // obsidian
+    else
+      drawTile(0,0,x,y); // grass
+
+    drawTile(16,0,x,y+TILE); // dirt under
+  }
+
+  // trees
+  if(biomeIndex===0||biomeIndex===1){
+    for(let i=0;i<4;i++){
+      let x=(i*300-cameraX%300);
+      drawTile(64,0,x,VIEW_H-160);
+      drawTile(48,0,x-16,VIEW_H-192);
+    }
+  }
+
+  // enderman
+  if(biomeIndex===3){
+    for(let i=0;i<3;i++){
+      let x=(i*400-cameraX%400);
+      drawTile(112,0,x,VIEW_H-160);
+    }
+  }
+
+  // portal near end of section
+  let t=elapsed%sectionLength;
+  if(t>25 && t<30 && biomeIndex<3){
+    drawTile(96,0,VIEW_W/2-16,VIEW_H/2-64);
+    spawnParticles(VIEW_W/2,VIEW_H/2);
+  }
+
+  particles.forEach(p=>{
+    ctx.fillStyle="#ff55ff";
+    ctx.fillRect(p.x,p.y,4,4);
+  });
 
   requestAnimationFrame(loop);
 }
 
-function loop() {
+function loop(){
   update();
   draw();
 }
