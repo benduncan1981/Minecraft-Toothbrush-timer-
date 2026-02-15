@@ -3,18 +3,13 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>Oscar's Pixel Brushing Quest</title>
+<title>Oscar's Tooth Quest Elite</title>
 <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
 <style>
 :root{
-  --sky:#7ec0ee;
-  --grass1:#5fbf3f;
-  --grass2:#4aa52e;
-  --dirt1:#7a4b1f;
-  --dirt2:#5e3716;
-  --stone1:#9ea7ad;
-  --stone2:#7f8a90;
+  --pixel: 6px;
   --xp:#7CFC00;
+  --dark:#111;
 }
 
 *{
@@ -24,278 +19,282 @@
 
 body{
   margin:0;
-  font-family:'Press Start 2P', monospace;
-  color:white;
-  height:100vh;
   overflow:hidden;
-  display:flex;
-  justify-content:center;
-  align-items:center;
-  background:
-    repeating-linear-gradient(
-      0deg,
-      var(--grass1) 0px,
-      var(--grass1) 8px,
-      var(--grass2) 8px,
-      var(--grass2) 16px
-    );
+  font-family:'Press Start 2P', monospace;
+  background:#000;
+  color:white;
 }
 
-.sky{
-  position:absolute;
+canvas{
+  position:fixed;
   top:0;
-  width:100%;
-  height:40%;
-  background:
-    repeating-linear-gradient(
-      90deg,
-      var(--sky) 0px,
-      var(--sky) 16px,
-      #6bb5e5 16px,
-      #6bb5e5 32px
-    );
-}
-
-.cloud{
-  position:absolute;
-  width:80px;
-  height:32px;
-  background:white;
+  left:0;
   image-rendering:pixelated;
-  animation:cloudMove 40s linear infinite;
 }
 
-@keyframes cloudMove{
-  from{left:-100px;}
-  to{left:110%;}
-}
-
-.container{
+.ui{
   position:relative;
+  z-index:10;
   text-align:center;
-  width:90%;
-  max-width:480px;
-  background:
-    repeating-linear-gradient(
-      45deg,
-      var(--stone1) 0px,
-      var(--stone1) 8px,
-      var(--stone2) 8px,
-      var(--stone2) 16px
-    );
-  border:8px solid black;
-  padding:20px;
-  box-shadow:0 0 0 8px #333;
+  padding:15px;
 }
 
 h1{
-  font-size:14px;
-  margin-bottom:15px;
-  text-shadow:4px 4px black;
+  font-size:12px;
+  text-shadow:3px 3px black;
 }
 
 .timer{
-  font-size:36px;
-  margin:20px 0;
-  text-shadow:5px 5px black;
-}
-
-.zone{
-  font-size:10px;
-  margin-bottom:10px;
-  color:#4de3ff;
-}
-
-button{
-  font-family:'Press Start 2P', monospace;
-  background:
-    repeating-linear-gradient(
-      0deg,
-      var(--dirt1) 0px,
-      var(--dirt1) 8px,
-      var(--dirt2) 8px,
-      var(--dirt2) 16px
-    );
-  border:6px solid black;
-  color:white;
-  padding:14px;
-  width:100%;
-  font-size:10px;
-  margin-top:15px;
-  box-shadow:4px 4px #000;
-}
-
-button:active{
-  transform:translate(4px,4px);
-  box-shadow:none;
+  font-size:28px;
+  margin:15px 0;
+  text-shadow:4px 4px black;
 }
 
 .xp-bar{
-  width:100%;
+  width:90%;
+  margin:0 auto;
   height:18px;
   background:#222;
   border:4px solid black;
-  margin-top:15px;
   position:relative;
 }
 
 .xp-fill{
   height:100%;
   width:0%;
-  background:
-    repeating-linear-gradient(
-      90deg,
-      var(--xp) 0px,
-      var(--xp) 8px,
-      #63d900 8px,
-      #63d900 16px
-    );
-  transition:width 0.5s linear;
-}
-
-.orb{
-  position:absolute;
-  width:8px;
-  height:8px;
   background:var(--xp);
-  animation:orbRise 2s linear forwards;
 }
 
-@keyframes orbRise{
-  to{transform:translateY(-120px);opacity:0;}
+button{
+  font-family:'Press Start 2P', monospace;
+  margin-top:15px;
+  padding:12px;
+  width:90%;
+  background:#5e3716;
+  color:white;
+  border:5px solid black;
 }
 
-.warning{
-  animation:flash 0.5s infinite;
+.mouth{
+  width:160px;
+  height:100px;
+  margin:20px auto;
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  grid-template-rows:1fr 1fr;
+  gap:4px;
 }
 
-@keyframes flash{
-  0%,100%{filter:none;}
-  50%{filter:brightness(1.8) hue-rotate(90deg);}
+.quad{
+  background:#550000;
+  border:3px solid black;
 }
 
-.achievement{
-  position:absolute;
-  top:20%;
-  left:50%;
-  transform:translateX(-50%);
-  background:black;
-  border:6px solid gold;
-  padding:20px;
-  display:none;
-  text-align:center;
-  animation:pop 0.4s ease-out forwards;
+.active{
+  background:#ff4444;
 }
-
-@keyframes pop{
-  from{transform:translateX(-50%) scale(0.5);}
-  to{transform:translateX(-50%) scale(1);}
+.stats{
+  font-size:8px;
+  margin-top:10px;
 }
 </style>
 </head>
 <body>
 
-<div class="sky"></div>
-<div class="cloud" style="top:40px;"></div>
-<div class="cloud" style="top:80px; animation-duration:60s;"></div>
+<canvas id="game"></canvas>
 
-<div class="container">
+<div class="ui">
   <h1>Oscar's Tooth Quest</h1>
   <div class="timer" id="timer">02:00</div>
-  <div class="zone" id="zone">Tap Start To Begin</div>
-  <button id="startBtn">START BRUSHING</button>
-  <button id="resetBtn" style="display:none;">RESTART QUEST</button>
+
+  <div class="mouth">
+    <div class="quad" id="q0"></div>
+    <div class="quad" id="q1"></div>
+    <div class="quad" id="q2"></div>
+    <div class="quad" id="q3"></div>
+  </div>
+
   <div class="xp-bar">
     <div class="xp-fill" id="xp"></div>
   </div>
-</div>
 
-<div class="achievement" id="achievement">
-  TREASURE UNLOCKED<br><br>
-  SUPER CLEAN TEETH<br><br>
-  Oscar Level Up!
+  <button id="startBtn">START QUEST</button>
+  <button id="resetBtn" style="display:none;">RESTART</button>
+
+  <div class="stats" id="stats"></div>
 </div>
 
 <script>
+const canvas=document.getElementById("game");
+const ctx=canvas.getContext("2d");
+canvas.width=window.innerWidth;
+canvas.height=window.innerHeight;
+
 let totalTime=120;
 let timeLeft=120;
-let interval;
+let running=false;
+let lastTime=0;
+let particles=[];
+let bossMode=false;
 
-const timer=document.getElementById("timer");
-const zone=document.getElementById("zone");
-const xp=document.getElementById("xp");
-const achievement=document.getElementById("achievement");
+const timerEl=document.getElementById("timer");
+const xpEl=document.getElementById("xp");
 const startBtn=document.getElementById("startBtn");
 const resetBtn=document.getElementById("resetBtn");
+const statsEl=document.getElementById("stats");
+const quads=[0,1,2,3].map(i=>document.getElementById("q"+i));
 
-const zones=[
-  "Top Left Zone",
-  "Top Right Zone",
-  "Bottom Left Zone",
-  "Bottom Right Zone"
-];
+let save=JSON.parse(localStorage.getItem("toothQuest"))||{
+  totalMinutes:0,
+  streak:0,
+  lastDate:null
+};
 
-function update(){
-  let m=Math.floor(timeLeft/60);
-  let s=timeLeft%60;
-  timer.textContent=(m<10?"0":"")+m+":"+(s<10?"0":"")+s;
+function updateStats(){
+  const level=Math.floor(save.totalMinutes/10)+1;
+  statsEl.innerHTML=
+    "Level: "+level+
+    "<br>Streak: "+save.streak+
+    "<br>Total Minutes: "+save.totalMinutes;
+}
+updateStats();
 
-  let progress=((120-timeLeft)/120)*100;
-  xp.style.width=progress+"%";
-
-  let zoneIndex=Math.floor((120-timeLeft)/30);
-  if(zoneIndex<4){
-    zone.textContent=zones[zoneIndex];
-  }
-
-  if(timeLeft===10){
-    document.body.classList.add("warning");
-  }
+function saveData(){
+  localStorage.setItem("toothQuest",JSON.stringify(save));
 }
 
-function orb(){
-  const o=document.createElement("div");
-  o.className="orb";
-  o.style.left=Math.random()*window.innerWidth+"px";
-  o.style.bottom="0px";
-  document.body.appendChild(o);
-  setTimeout(()=>o.remove(),2000);
+function formatTime(t){
+  let m=Math.floor(t/60);
+  let s=t%60;
+  return (m<10?"0":"")+m+":"+(s<10?"0":"")+s;
 }
 
-function finish(){
-  clearInterval(interval);
-  achievement.style.display="block";
-  zone.textContent="Quest Complete!";
+function playTone(freq,dur){
+  const ctxAudio=new (window.AudioContext||window.webkitAudioContext)();
+  const osc=ctxAudio.createOscillator();
+  osc.type="square";
+  osc.frequency.value=freq;
+  osc.connect(ctxAudio.destination);
+  osc.start();
+  osc.stop(ctxAudio.currentTime+dur);
+}
+
+function spawnParticle(x,y){
+  particles.push({
+    x,y,
+    vx:(Math.random()-0.5)*4,
+    vy:-Math.random()*4,
+    life:60
+  });
+}
+
+function explosion(){
+  for(let i=0;i<80;i++){
+    spawnParticle(canvas.width/2,canvas.height/2);
+  }
+  if(navigator.vibrate) navigator.vibrate([200,100,200]);
+}
+
+function updateParticles(){
+  particles.forEach(p=>{
+    p.x+=p.vx;
+    p.y+=p.vy;
+    p.vy+=0.2;
+    p.life--;
+  });
+  particles=particles.filter(p=>p.life>0);
+}
+
+function drawBackground(){
+  const hour=new Date().getHours();
+  if(hour>=18||hour<6){
+    ctx.fillStyle="#001";
+  }else{
+    ctx.fillStyle="#87ceeb";
+  }
+  ctx.fillRect(0,0,canvas.width,canvas.height);
+}
+
+function drawParticles(){
+  ctx.fillStyle="#7CFC00";
+  particles.forEach(p=>{
+    ctx.fillRect(p.x,p.y,4,4);
+  });
+}
+
+function gameLoop(timestamp){
+  if(!lastTime) lastTime=timestamp;
+  const delta=timestamp-lastTime;
+  lastTime=timestamp;
+
+  if(running){
+    if(delta>=1000){
+      timeLeft--;
+      lastTime=timestamp;
+      timerEl.textContent=formatTime(timeLeft);
+      xpEl.style.width=((120-timeLeft)/120*100)+"%";
+
+      const quadIndex=Math.floor((120-timeLeft)/30);
+      quads.forEach(q=>q.classList.remove("active"));
+      if(quadIndex<4) quads[quadIndex].classList.add("active");
+
+      if(timeLeft<=15 && !bossMode){
+        bossMode=true;
+        playTone(100,0.5);
+      }
+
+      if(timeLeft<=0){
+        running=false;
+        explosion();
+        playTone(400,0.4);
+        playTone(600,0.4);
+        finishQuest();
+      }
+
+      spawnParticle(Math.random()*canvas.width,canvas.height/2);
+    }
+  }
+
+  drawBackground();
+  updateParticles();
+  drawParticles();
+  requestAnimationFrame(gameLoop);
+}
+
+function finishQuest(){
+  save.totalMinutes+=2;
+  const today=new Date().toDateString();
+  if(save.lastDate!==today){
+    save.streak++;
+    save.lastDate=today;
+  }
+  saveData();
+  updateStats();
   startBtn.style.display="none";
   resetBtn.style.display="block";
-  if(navigator.vibrate) navigator.vibrate([200,100,200]);
-  document.body.classList.remove("warning");
 }
 
-function start(){
-  startBtn.disabled=true;
-  if(navigator.vibrate) navigator.vibrate(100);
-  interval=setInterval(()=>{
-    timeLeft--;
-    update();
-    orb();
-    if(timeLeft<=0) finish();
-  },1000);
-}
-
-function reset(){
+startBtn.onclick=()=>{
+  running=true;
+  bossMode=false;
   timeLeft=120;
-  xp.style.width="0%";
-  achievement.style.display="none";
-  zone.textContent="Tap Start To Begin";
-  startBtn.disabled=false;
+  timerEl.textContent="02:00";
+  startBtn.disabled=true;
+  playTone(200,0.3);
+  if(navigator.vibrate) navigator.vibrate(100);
+};
+
+resetBtn.onclick=()=>{
+  timeLeft=120;
+  xpEl.style.width="0%";
+  quads.forEach(q=>q.classList.remove("active"));
   startBtn.style.display="block";
   resetBtn.style.display="none";
-  timer.textContent="02:00";
-}
+  startBtn.disabled=false;
+  bossMode=false;
+};
 
-startBtn.addEventListener("click",start);
-resetBtn.addEventListener("click",reset);
+requestAnimationFrame(gameLoop);
 </script>
 
 </body>
