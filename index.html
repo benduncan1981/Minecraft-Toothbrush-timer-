@@ -1,205 +1,200 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="utf-8"/>
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
-<title>Oscar's Minecraft Tooth Adventure</title>
-<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Minecraft Brushing Adventure</title>
 <style>
-*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
-body,html{height:100%;overflow:hidden;background:#000;font-family:'Press Start 2P',monospace;color:#fff;}
-canvas{position:fixed;top:0;left:0;width:100%;height:100%;image-rendering:pixelated;}
-.ui{
-position:absolute;
-top:0;left:0;
-width:100%;height:100%;
-display:flex;
-flex-direction:column;
-align-items:center;
-justify-content:flex-start;
-padding-top:40px;
-pointer-events:none;
+body {
+  margin: 0;
+  background: black;
+  overflow: hidden;
+  font-family: monospace;
+  color: white;
 }
-.timer{font-size:28px;text-shadow:4px 4px #000;margin-bottom:10px;}
-.biomeName{font-size:14px;margin-bottom:15px;text-shadow:3px 3px #000;}
-button{
-pointer-events:auto;
-margin-top:20px;
-padding:12px 18px;
-background:#5e3716;
-border:4px solid #000;
-color:#fdf5d0;
-font-family:'Press Start 2P',monospace;
-box-shadow:0 4px 0 #000;
+
+#game {
+  display: block;
 }
-button:active{transform:translateY(2px);box-shadow:0 2px 0 #000;}
-.reward{
-position:absolute;
-top:50%;left:50%;
-transform:translate(-50%,-50%);
-text-align:center;
-display:none;
+
+#ui {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  right: 10px;
 }
-.reward h1{font-size:18px;margin-bottom:15px;}
+
+#progressBar {
+  height: 12px;
+  background: #222;
+  border: 2px solid #555;
+}
+
+#progressFill {
+  height: 100%;
+  width: 0%;
+  background: limegreen;
+}
+
+#timer {
+  margin-top: 6px;
+  font-size: 16px;
+}
+
+#reward {
+  position: absolute;
+  inset: 0;
+  background: black;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  font-size: 22px;
+}
 </style>
 </head>
 <body>
+
 <canvas id="game"></canvas>
 
-<div class="ui">
-<div class="timer" id="timer">02:00</div>
-<div class="biomeName" id="biomeName">Overworld</div>
-<button id="startBtn">Start Adventure</button>
+<div id="ui">
+  <div id="progressBar"><div id="progressFill"></div></div>
+  <div id="timer">2:00</div>
 </div>
 
-<div class="reward" id="reward">
-<h1>Quest Complete!</h1>
-<div>+2 Minutes XP</div>
-<button onclick="location.reload()">Play Again</button>
+<div id="reward">
+  <div>🏆 Brushing Complete!</div>
+  <div>You travelled all biomes!</div>
 </div>
 
 <script>
-const canvas=document.getElementById("game");
-const ctx=canvas.getContext("2d");
-let DPR=window.devicePixelRatio||2;
+const canvas = document.getElementById("game");
+const ctx = canvas.getContext("2d");
+canvas.width = innerWidth;
+canvas.height = innerHeight;
 
-function resize(){
-canvas.width=innerWidth*DPR;
-canvas.height=innerHeight*DPR;
-canvas.style.width=innerWidth+"px";
-canvas.style.height=innerHeight+"px";
-ctx.setTransform(DPR,0,0,DPR,0,0);
-}
-resize();
-addEventListener("resize",resize);
+let totalTime = 120;
+let elapsed = 0;
+let speed = 2;
+let worldX = 0;
+let currentBiome = 0;
+let sectionLength = totalTime / 4;
+let running = true;
 
-let time=120;
-let running=false;
-let particles=[];
-let currentBiome=0;
-
-const biomes=[
-{name:"Overworld",sky:"#6ec5ff",ground:"#3f8f2b"},
-{name:"Desert",sky:"#ffd27f",ground:"#e5c07b"},
-{name:"Snowy Tundra",sky:"#bcdfff",ground:"#e8f2ff"},
-{name:"The End",sky:"#2e003e",ground:"#3b1c4d"}
+const biomes = [
+  { sky:"#87CEEB", ground:"#4CAF50" },   // Plains
+  { sky:"#78A7FF", ground:"#228B22" },   // Forest
+  { sky:"#F4D03F", ground:"#C2B280" },   // Desert
+  { sky:"#3C1E4B", ground:"#4B0082" }    // End
 ];
 
-const timerEl=document.getElementById("timer");
-const biomeName=document.getElementById("biomeName");
-const startBtn=document.getElementById("startBtn");
-const reward=document.getElementById("reward");
-
-let audioCtx;
-
-function beep(freq){
-if(!audioCtx)audioCtx=new (window.AudioContext||window.webkitAudioContext)();
-const o=audioCtx.createOscillator();
-const g=audioCtx.createGain();
-o.frequency.value=freq;
-o.type="square";
-o.connect(g);
-g.connect(audioCtx.destination);
-g.gain.setValueAtTime(0.1,audioCtx.currentTime);
-g.gain.exponentialRampToValueAtTime(0.001,audioCtx.currentTime+0.1);
-o.start();
-o.stop(audioCtx.currentTime+0.1);
+function drawSun() {
+  ctx.fillStyle = "yellow";
+  ctx.beginPath();
+  ctx.arc(canvas.width - 100, 100, 40, 0, Math.PI*2);
+  ctx.fill();
 }
 
-function format(t){
-const m=Math.floor(t/60);
-const s=t%60;
-return (m<10?"0":"")+m+":"+(s<10?"0":"")+s;
+function drawCloud(x,y) {
+  ctx.fillStyle = "white";
+  ctx.fillRect(x, y, 60, 20);
+  ctx.fillRect(x+20, y-10, 60, 20);
 }
 
-function spawnParticle(x,y){
-particles.push({x,y,vx:(Math.random()-0.5)*4,vy:(Math.random()-0.5)*4,life:60});
+function drawTree(x) {
+  ctx.fillStyle = "#8B4513";
+  ctx.fillRect(x, canvas.height-200, 20, 100);
+  ctx.fillStyle = "green";
+  ctx.fillRect(x-30, canvas.height-250, 80, 80);
 }
 
-function drawBiome(){
-const b=biomes[currentBiome];
-ctx.fillStyle=b.sky;
-ctx.fillRect(0,0,innerWidth,innerHeight);
-
-ctx.fillStyle=b.ground;
-ctx.fillRect(0,innerHeight*0.65,innerWidth,innerHeight*0.35);
-
-// block texture
-for(let x=0;x<innerWidth;x+=32){
-for(let y=innerHeight*0.65;y<innerHeight;y+=32){
-ctx.fillStyle="rgba(0,0,0,0.15)";
-ctx.fillRect(x,y+28,32,4);
-}
-}
+function drawCactus(x) {
+  ctx.fillStyle = "green";
+  ctx.fillRect(x, canvas.height-180, 30, 120);
 }
 
-function updateParticles(){
-particles.forEach(p=>{
-p.x+=p.vx;
-p.y+=p.vy;
-p.life--;
-});
-particles=particles.filter(p=>p.life>0);
+function drawEnderman(x) {
+  ctx.fillStyle = "black";
+  ctx.fillRect(x, canvas.height-220, 30, 120);
+  ctx.fillStyle = "pink";
+  ctx.fillRect(x+5, canvas.height-200, 20, 10);
 }
 
-function drawParticles(){
-ctx.fillStyle="#ff66cc"; // Enderman pink
-particles.forEach(p=>{
-ctx.fillRect(p.x,p.y,4,4);
-});
+function drawPortal() {
+  ctx.fillStyle = "purple";
+  ctx.fillRect(canvas.width/2 - 60, canvas.height/2 - 100, 120, 200);
 }
 
-function loop(){
-drawBiome();
-updateParticles();
-drawParticles();
-requestAnimationFrame(loop);
+function update() {
+  if (!running) return;
+
+  worldX += speed;
+  elapsed += 1/60;
+
+  if (Math.floor(elapsed) % 1 === 0) beep();
+
+  let progress = (elapsed / totalTime) * 100;
+  document.getElementById("progressFill").style.width = progress + "%";
+
+  let remaining = totalTime - Math.floor(elapsed);
+  let mins = Math.floor(remaining / 60);
+  let secs = remaining % 60;
+  document.getElementById("timer").textContent =
+    mins + ":" + (secs<10?"0":"") + secs;
+
+  currentBiome = Math.floor(elapsed / sectionLength);
+
+  if (elapsed >= totalTime) {
+    running = false;
+    document.getElementById("reward").style.display = "flex";
+  }
 }
+
+function beep() {
+  const audio = new AudioContext();
+  const osc = audio.createOscillator();
+  osc.type = "square";
+  osc.frequency.value = 600;
+  osc.connect(audio.destination);
+  osc.start();
+  osc.stop(audio.currentTime + 0.05);
+}
+
+function draw() {
+  let biome = biomes[currentBiome] || biomes[3];
+
+  ctx.fillStyle = biome.sky;
+  ctx.fillRect(0,0,canvas.width,canvas.height);
+
+  drawSun();
+  drawCloud(100 - worldX*0.2,100);
+  drawCloud(400 - worldX*0.2,150);
+
+  ctx.fillStyle = biome.ground;
+  ctx.fillRect(0,canvas.height-120,canvas.width,120);
+
+  for (let i=0;i<10;i++) {
+    let x = i*300 - worldX%300;
+    if (currentBiome === 0) drawTree(x);
+    if (currentBiome === 1) drawTree(x);
+    if (currentBiome === 2) drawCactus(x);
+    if (currentBiome === 3) drawEnderman(x);
+  }
+
+  if (elapsed > sectionLength && elapsed < sectionLength+3) {
+    drawPortal();
+  }
+
+  requestAnimationFrame(loop);
+}
+
+function loop() {
+  update();
+  draw();
+}
+
 loop();
-
-function nextBiome(){
-currentBiome++;
-if(currentBiome>=biomes.length)currentBiome=biomes.length-1;
-biomeName.textContent=biomes[currentBiome].name;
-for(let i=0;i<60;i++){
-spawnParticle(innerWidth/2,innerHeight/2);
-}
-}
-
-function tick(){
-time--;
-timerEl.textContent=format(time);
-beep(600);
-
-if(time%30===0){
-nextBiome();
-beep(900);
-}
-
-if(time<=0){
-finish();
-}
-}
-
-function finish(){
-running=false;
-clearInterval(timerInterval);
-reward.style.display="block";
-for(let i=0;i<200;i++){
-spawnParticle(Math.random()*innerWidth,Math.random()*innerHeight);
-}
-beep(1000);
-}
-
-let timerInterval;
-
-startBtn.onclick=()=>{
-if(running)return;
-running=true;
-startBtn.style.display="none";
-audioCtx=new (window.AudioContext||window.webkitAudioContext)();
-timerInterval=setInterval(tick,1000);
-};
 </script>
+
 </body>
 </html>
