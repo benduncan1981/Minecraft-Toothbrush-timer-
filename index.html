@@ -1,162 +1,303 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Brushing Adventure — Minecraft Timer</title>
-<meta name="description" content="Minecraft-style two-minute brushing timer for kids with first-person adventure, animations, particles and reward screen.">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Oscar's Brushing Adventure</title>
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
-  html,body{margin:0;padding:0;width:100%;height:100%;overflow:hidden;background:#000;font-family:'Press Start 2P',monospace;color:#fff;}
-  canvas{display:block;width:100vw;height:100vh;background:#87CEEB;image-rendering:pixelated;}
-  #hud{position:absolute;top:12px;left:50%;transform:translateX(-50%);z-index:50;display:flex;gap:12px;align-items:center;}
-  .panel{background:rgba(0,0,0,0.6);padding:6px 10px;border:2px solid #333;border-radius:8px;display:flex;flex-direction:column;align-items:center;}
-  #timer{font-size:24px;text-align:center;}
-  #controls{position:absolute;bottom:12px;left:50%;transform:translateX(-50%);display:flex;gap:12px;z-index:50;}
-  button{font-family:'Press Start 2P';font-size:12px;padding:8px 12px;background:#222;color:#fff;border:2px solid #444;border-radius:6px;cursor:pointer;}
-  button:active{transform:translateY(1px);}
-  #xpBar{width:260px;height:14px;background:#222;border:2px solid #444;border-radius:6px;overflow:hidden;margin-top:6px;}
-  #xpFill{height:100%;width:0%;background:#7CFC00;transition:width 0.1s linear;}
-  #reward{position:absolute;inset:0;background:rgba(0,0,0,0.9);display:none;flex-direction:column;align-items:center;justify-content:center;z-index:60;}
-  #reward h1{font-size:22px;margin-bottom:8px;}
-  #reward button{margin-top:12px;}
+@import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+
+html,body{
+  margin:0;
+  padding:0;
+  height:100%;
+  overflow:hidden;
+  background:#000;
+  font-family:'Press Start 2P', monospace;
+  color:#fff;
+}
+
+canvas{
+  display:block;
+  width:100vw;
+  height:100vh;
+  image-rendering:pixelated;
+}
+
+#ui{
+  position:fixed;
+  top:20px;
+  left:50%;
+  transform:translateX(-50%);
+  text-align:center;
+  z-index:10;
+}
+
+#timer{
+  font-size:34px;
+  margin-bottom:10px;
+  text-shadow:0 0 10px rgba(255,255,255,0.6);
+}
+
+#xpContainer{
+  width:260px;
+  height:16px;
+  border:3px solid #222;
+  background:#111;
+  margin:0 auto 12px;
+}
+
+#xp{
+  height:100%;
+  width:0%;
+  background:linear-gradient(90deg,#7CFC00,#32CD32);
+  box-shadow:0 0 10px #7CFC00;
+}
+
+button{
+  font-family:'Press Start 2P';
+  padding:8px 14px;
+  margin:4px;
+  background:#222;
+  border:2px solid #444;
+  color:#fff;
+  cursor:pointer;
+}
+
+button:active{
+  transform:translateY(2px);
+}
+
+#reward{
+  position:fixed;
+  inset:0;
+  display:none;
+  align-items:center;
+  justify-content:center;
+  flex-direction:column;
+  background:rgba(0,0,0,0.95);
+  z-index:20;
+}
 </style>
 </head>
 <body>
-<canvas id="game"></canvas>
 
-<div id="hud">
-  <div class="panel">
-    <div id="timer">2:00</div>
-    <div id="xpBar"><div id="xpFill"></div></div>
+<canvas id="world"></canvas>
+
+<div id="ui">
+  <div id="timer">2:00</div>
+  <div id="xpContainer"><div id="xp"></div></div>
+  <div>
+    <button id="start">START</button>
+    <button id="pause" style="display:none">PAUSE</button>
+    <button id="reset" style="display:none">RESET</button>
   </div>
 </div>
 
-<div id="controls">
-  <button id="startBtn">START</button>
-  <button id="pauseBtn" style="display:none;">PAUSE</button>
-  <button id="resetBtn" style="display:none;">RESET</button>
-</div>
-
 <div id="reward">
-  <h1>🎉 Achievement Unlocked! 🎉</h1>
-  <div>Super Brusher</div>
-  <button id="rewardRestart">Play Again</button>
+  <div style="font-size:24px;margin-bottom:20px;">SUPER BRUSHER</div>
+  <button onclick="restart()">PLAY AGAIN</button>
 </div>
 
 <script>
-const canvas = document.getElementById('game');
+const canvas = document.getElementById('world');
 const ctx = canvas.getContext('2d');
-let W = window.innerWidth;
-let H = window.innerHeight;
-canvas.width = W; canvas.height = H;
+let W,H;
 
-const TOTAL_TIME = 120;
+function resize(){
+  W = canvas.width = window.innerWidth;
+  H = canvas.height = window.innerHeight;
+}
+window.addEventListener('resize',resize);
+resize();
+
+const TOTAL = 120;
 let elapsed = 0;
 let running = false;
 let lastSecond = -1;
-let particles = [];
+let biomeIndex = 0;
 
 const timerEl = document.getElementById('timer');
-const xpFill = document.getElementById('xpFill');
-const startBtn = document.getElementById('startBtn');
-const pauseBtn = document.getElementById('pauseBtn');
-const resetBtn = document.getElementById('resetBtn');
-const reward = document.getElementById('reward');
-const rewardRestart = document.getElementById('rewardRestart');
+const xpEl = document.getElementById('xp');
 
-let audioCtx = null;
-let beepInterval = null;
-let soundEnabled = true;
+const biomes = [
+  {sky:'#87CEEB',ground:'#4CAF50'},
+  {sky:'#FFA500',ground:'#C2B280'},
+  {sky:'#6A5ACD',ground:'#2F4F4F'},
+  {sky:'#000000',ground:'#222'}
+];
 
-function ensureAudio(){if(audioCtx)return audioCtx;const C=window.AudioContext||window.webkitAudioContext;if(!C)return null;audioCtx=new C();return audioCtx;}
-function beep(){if(!soundEnabled)return;const a=ensureAudio();if(!a)return;const now=a.currentTime;const o=a.createOscillator();const g=a.createGain();o.type='square';o.frequency.value=700;g.gain.setValueAtTime(0,now);g.gain.linearRampToValueAtTime(0.08,now+0.005);g.gain.exponentialRampToValueAtTime(0.0001,now+0.08);o.connect(g);g.connect(a.destination);o.start(now);o.stop(now+0.09);}
-function chime(){if(!soundEnabled)return;const a=ensureAudio();if(!a)return;const now=a.currentTime;const o1=a.createOscillator();const o2=a.createOscillator();const g=a.createGain();o1.type='sine';o2.type='sine';o1.frequency.value=880;o2.frequency.value=660;g.gain.value=0;o1.connect(g);o2.connect(g);g.connect(a.destination);g.gain.setValueAtTime(0,now);g.gain.linearRampToValueAtTime(0.06,now+0.01);g.gain.exponentialRampToValueAtTime(0.0001,now+0.6);o1.start(now);o2.start(now+0.02);o1.stop(now+0.6);o2.stop(now+0.6);}
+let cameraY = 0;
+let mobs = [];
+let particles = [];
 
-function formatTime(sec){sec=Math.max(0,Math.ceil(sec));const m=Math.floor(sec/60);const s=sec%60;return m+':'+(s<10?'0':'')+s;}
-
-function startGame(){
-  const a = ensureAudio(); if(a && a.state==='suspended')a.resume();
-  running=true; elapsed=0; lastSecond=-1; particles=[];
-  reward.style.display='none';
-  startBtn.style.display='none'; pauseBtn.style.display='inline-block'; resetBtn.style.display='inline-block';
-  if(beepInterval)clearInterval(beepInterval);
-  beepInterval=setInterval(()=>{ if(running)beep(); },1000);
-  if(!animating)requestAnimationFrame(loop);
+function spawnMob(){
+  mobs.push({
+    x:Math.random()*W,
+    y:H*0.55 + Math.random()*100,
+    dir:Math.random()<0.5?-1:1,
+    speed:0.5+Math.random()
+  });
 }
-function pauseGame(){running=false;pauseBtn.style.display='none';startBtn.textContent='RESUME';startBtn.style.display='inline-block';}
-function resetGame(){running=false;elapsed=0;xpFill.style.width='0%';timerEl.textContent=formatTime(TOTAL_TIME);reward.style.display='none';startBtn.textContent='START';startBtn.style.display='inline-block';pauseBtn.style.display='none';resetBtn.style.display='none';if(beepInterval){clearInterval(beepInterval);beepInterval=null;}}
-startBtn.addEventListener('click',()=>{startGame();});
-pauseBtn.addEventListener('click',()=>{pauseGame();});
-resetBtn.addEventListener('click',()=>{resetGame();});
-rewardRestart.addEventListener('click',()=>{resetGame();startGame();});
 
-function drawLandscape(){
-  ctx.clearRect(0,0,W,H);
-  // sky
-  ctx.fillStyle='#87CEEB';
-  ctx.fillRect(0,0,W,H*0.5);
-  // ground
-  ctx.fillStyle='#228B22';
+function drawSky(color){
+  ctx.fillStyle = color;
+  ctx.fillRect(0,0,W,H);
+}
+
+function drawGround(color){
+  ctx.fillStyle = color;
   ctx.fillRect(0,H*0.5,W,H*0.5);
-  // sun
-  ctx.fillStyle='yellow'; ctx.beginPath(); ctx.arc(W*0.85,50,30,0,Math.PI*2);ctx.fill();
-  // clouds
-  ctx.fillStyle='white'; ctx.fillRect(50,50,60,20); ctx.fillRect(120,70,80,25);
-  // simple tree
-  ctx.fillStyle='#8B4513'; ctx.fillRect(150,H*0.5-60,20,60);
-  ctx.fillStyle='#2E8B57'; ctx.fillRect(130,H*0.5-90,60,30);
+}
+
+function drawSun(){
+  ctx.fillStyle='#FFD700';
+  ctx.beginPath();
+  ctx.arc(W*0.8,80,30,0,Math.PI*2);
+  ctx.fill();
+}
+
+function drawTrees(){
+  for(let i=0;i<5;i++){
+    const x = (i*200 + elapsed*40) % W;
+    ctx.fillStyle='#8B4513';
+    ctx.fillRect(x,H*0.5-60,20,60);
+    ctx.fillStyle='#2E8B57';
+    ctx.fillRect(x-20,H*0.5-90,60,40);
+  }
+}
+
+function drawWater(){
+  ctx.fillStyle='#1E90FF';
+  ctx.fillRect(0,H*0.65,W,40);
+}
+
+function drawHand(){
+  const bob = Math.sin(elapsed*10)*5;
+  ctx.fillStyle='#F1C27D';
+  ctx.fillRect(W/2-20,H-100+bob,40,60);
+  ctx.fillStyle='#fff';
+  ctx.fillRect(W/2-10,H-120+bob,20,20);
+}
+
+function updateMobs(){
+  mobs.forEach(m=>{
+    m.x += m.speed*m.dir;
+    if(m.x<0||m.x>W) m.dir*=-1;
+    ctx.fillStyle='#fff';
+    ctx.fillRect(m.x,m.y,20,20);
+  });
+}
+
+function spawnParticles(x,y,color){
+  for(let i=0;i<20;i++){
+    particles.push({
+      x,y,
+      vx:(Math.random()-0.5)*4,
+      vy:(Math.random()-0.5)*4,
+      life:60,
+      color
+    });
+  }
+}
+
+function updateParticles(){
+  particles.forEach(p=>{
+    ctx.fillStyle=p.color;
+    ctx.fillRect(p.x,p.y,4,4);
+    p.x+=p.vx;
+    p.y+=p.vy;
+    p.life--;
+  });
+  particles=particles.filter(p=>p.life>0);
 }
 
 function update(dt){
-  if(!running)return;
+  if(!running) return;
+
   elapsed+=dt;
-  const sec=Math.floor(elapsed);
+
+  const sec = Math.floor(elapsed);
   if(sec!==lastSecond){
     lastSecond=sec;
-    const progress=Math.min(1,elapsed/TOTAL_TIME);
-    xpFill.style.width=(progress*100)+'%';
+    spawnMob();
   }
-  const remain=Math.max(0,TOTAL_TIME-Math.floor(elapsed));
-  timerEl.textContent=formatTime(remain);
-  if(remain<=10){
-    timerEl.style.color=(sec%2===0?'#FF0000':'#fff');
-  }else{timerEl.style.color='#fff';}
-  if(elapsed>=TOTAL_TIME){running=false;if(beepInterval){clearInterval(beepInterval);beepInterval=null;}showReward();}
+
+  const remaining = TOTAL - sec;
+  timerEl.textContent = formatTime(remaining);
+  xpEl.style.width = (elapsed/TOTAL*100)+'%';
+
+  if(remaining<=10){
+    timerEl.style.color = sec%2?'#ff0000':'#fff';
+  } else {
+    timerEl.style.color = '#fff';
+  }
+
+  biomeIndex = Math.floor(elapsed/30)%biomes.length;
+
+  if(elapsed>=TOTAL){
+    running=false;
+    showReward();
+  }
+}
+
+function formatTime(s){
+  s=Math.max(0,s);
+  const m=Math.floor(s/60);
+  const sec=s%60;
+  return m+':'+(sec<10?'0':'')+sec;
+}
+
+function draw(){
+  const biome = biomes[biomeIndex];
+  drawSky(biome.sky);
+  drawGround(biome.ground);
+  drawSun();
+  drawTrees();
+  drawWater();
+  updateMobs();
+  updateParticles();
+  drawHand();
+}
+
+let lastTime = performance.now();
+function loop(now){
+  const dt = Math.min(0.05,(now-lastTime)/1000);
+  lastTime = now;
+  update(dt);
+  draw();
+  if(running||particles.length>0)
+    requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+
+document.getElementById('start').onclick=()=>{
+  running=true;
+  document.getElementById('start').style.display='none';
+  document.getElementById('pause').style.display='inline-block';
+  document.getElementById('reset').style.display='inline-block';
+};
+
+document.getElementById('pause').onclick=()=>{
+  running=false;
+  document.getElementById('pause').style.display='none';
+  document.getElementById('start').style.display='inline-block';
+};
+
+document.getElementById('reset').onclick=()=>restart();
+
+function restart(){
+  elapsed=0;
+  mobs=[];
+  particles=[];
+  running=true;
+  document.getElementById('reward').style.display='none';
 }
 
 function showReward(){
-  chime();
-  reward.style.display='flex';
-  // confetti
-  for(let i=0;i<200;i++){
-    particles.push({x:Math.random()*W,y:Math.random()*-H,vx:(Math.random()-0.5)*5,vy:Math.random()*5+2,life:200,color:`hsl(${Math.random()*360},100%,60%)`});
-  }
+  spawnParticles(W/2,H/2,'#7CFC00');
+  document.getElementById('reward').style.display='flex';
 }
-
-let lastTime=performance.now();
-let animating=false;
-function loop(now){
-  animating=true;
-  const dt=Math.min(0.05,(now-lastTime)/1000);
-  lastTime=now;
-  update(dt);
-  drawLandscape();
-  // particles
-  for(let p of particles){
-    ctx.fillStyle=p.color;
-    ctx.fillRect(p.x,p.y,4,4);
-    p.x+=p.vx; p.y+=p.vy; p.life--;
-  }
-  particles=particles.filter(p=>p.life>0);
-  if(running||particles.length>0)requestAnimationFrame(loop);
-  else animating=false;
-}
-
-requestAnimationFrame(loop);
-
-window.addEventListener('resize',()=>{W=window.innerWidth;H=window.innerHeight;canvas.width=W;canvas.height=H;});
-
 </script>
 </body>
 </html>
