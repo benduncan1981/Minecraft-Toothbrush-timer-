@@ -1,303 +1,290 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Oscar's Brushing Adventure</title>
-<style>
-@import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Oscar's Brush Quest</title>
 
-html,body{
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+
+<style>
+:root{
+  --green:#55ff55;
+  --red:#ff4444;
+  --dark:#1a1a1a;
+  --panel:#2b2b2b;
+  --border:#000;
+}
+
+*{
+  box-sizing:border-box;
+  -webkit-tap-highlight-color:transparent;
+}
+
+body{
   margin:0;
-  padding:0;
-  height:100%;
+  background:#111;
+  color:white;
+  font-family:'Press Start 2P', cursive;
   overflow:hidden;
-  background:#000;
-  font-family:'Press Start 2P', monospace;
-  color:#fff;
+  display:flex;
+  flex-direction:column;
+  height:100vh;
+}
+
+header{
+  text-align:center;
+  padding:12px;
+  font-size:14px;
+}
+
+#gameContainer{
+  position:relative;
+  flex:1;
 }
 
 canvas{
   display:block;
-  width:100vw;
-  height:100vh;
+  width:100%;
+  height:100%;
   image-rendering:pixelated;
 }
 
 #ui{
-  position:fixed;
-  top:20px;
+  position:absolute;
+  top:50%;
   left:50%;
-  transform:translateX(-50%);
+  transform:translate(-50%,-50%);
   text-align:center;
-  z-index:10;
 }
 
 #timer{
-  font-size:34px;
-  margin-bottom:10px;
-  text-shadow:0 0 10px rgba(255,255,255,0.6);
+  font-size:48px;
+  margin-bottom:24px;
+  text-shadow:4px 4px 0 #000;
 }
 
-#xpContainer{
-  width:260px;
-  height:16px;
-  border:3px solid #222;
-  background:#111;
-  margin:0 auto 12px;
+.flash{
+  animation:flash 0.5s infinite;
 }
 
-#xp{
-  height:100%;
-  width:0%;
-  background:linear-gradient(90deg,#7CFC00,#32CD32);
-  box-shadow:0 0 10px #7CFC00;
+@keyframes flash{
+  0%{color:var(--red);}
+  50%{color:white;}
+  100%{color:var(--red);}
 }
 
 button{
-  font-family:'Press Start 2P';
-  padding:8px 14px;
-  margin:4px;
-  background:#222;
-  border:2px solid #444;
-  color:#fff;
-  cursor:pointer;
+  font-family:'Press Start 2P', cursive;
+  font-size:12px;
+  padding:12px 16px;
+  margin:6px;
+  background:var(--panel);
+  color:white;
+  border:4px solid var(--border);
+  box-shadow:4px 4px 0 #000;
 }
 
 button:active{
-  transform:translateY(2px);
+  transform:translate(2px,2px);
+  box-shadow:2px 2px 0 #000;
 }
 
 #reward{
-  position:fixed;
+  position:absolute;
   inset:0;
+  background:rgba(0,0,0,0.85);
   display:none;
-  align-items:center;
   justify-content:center;
+  align-items:center;
   flex-direction:column;
-  background:rgba(0,0,0,0.95);
-  z-index:20;
+  font-size:18px;
+  text-align:center;
 }
 </style>
 </head>
 <body>
 
-<canvas id="world"></canvas>
+<header>Oscar's Brush Quest</header>
 
-<div id="ui">
-  <div id="timer">2:00</div>
-  <div id="xpContainer"><div id="xp"></div></div>
-  <div>
-    <button id="start">START</button>
-    <button id="pause" style="display:none">PAUSE</button>
-    <button id="reset" style="display:none">RESET</button>
+<div id="gameContainer">
+  <canvas id="game"></canvas>
+
+  <div id="ui">
+    <div id="timer">02:00</div>
+    <button onclick="startTimer()">START</button>
+    <button onclick="pauseTimer()">PAUSE</button>
+    <button onclick="resetTimer()">RESET</button>
+  </div>
+
+  <div id="reward">
+    <div>✨ YOU DID IT! ✨</div>
+    <button onclick="resetTimer()">PLAY AGAIN</button>
   </div>
 </div>
 
-<div id="reward">
-  <div style="font-size:24px;margin-bottom:20px;">SUPER BRUSHER</div>
-  <button onclick="restart()">PLAY AGAIN</button>
-</div>
-
 <script>
-const canvas = document.getElementById('world');
-const ctx = canvas.getContext('2d');
-let W,H;
+const canvas=document.getElementById("game");
+const ctx=canvas.getContext("2d");
+const dpr=window.devicePixelRatio||1;
 
 function resize(){
-  W = canvas.width = window.innerWidth;
-  H = canvas.height = window.innerHeight;
+  canvas.width=window.innerWidth*dpr;
+  canvas.height=window.innerHeight*dpr;
+  canvas.style.width=window.innerWidth+"px";
+  canvas.style.height=window.innerHeight+"px";
+  ctx.setTransform(dpr,0,0,dpr,0,0);
 }
-window.addEventListener('resize',resize);
+window.addEventListener("resize",resize);
 resize();
 
-const TOTAL = 120;
-let elapsed = 0;
-let running = false;
-let lastSecond = -1;
-let biomeIndex = 0;
+let total=120;
+let remaining=120;
+let running=false;
+let lastSecond=-1;
+let startTime=0;
+let pauseOffset=0;
 
-const timerEl = document.getElementById('timer');
-const xpEl = document.getElementById('xp');
+const timerEl=document.getElementById("timer");
+const reward=document.getElementById("reward");
 
-const biomes = [
-  {sky:'#87CEEB',ground:'#4CAF50'},
-  {sky:'#FFA500',ground:'#C2B280'},
-  {sky:'#6A5ACD',ground:'#2F4F4F'},
-  {sky:'#000000',ground:'#222'}
-];
+let audioCtx=null;
 
-let cameraY = 0;
-let mobs = [];
-let particles = [];
+function beep(freq=600,duration=0.1){
+  if(!audioCtx) return;
+  const osc=audioCtx.createOscillator();
+  const gain=audioCtx.createGain();
+  osc.connect(gain);
+  gain.connect(audioCtx.destination);
+  osc.frequency.value=freq;
+  gain.gain.value=0.1;
+  osc.start();
+  osc.stop(audioCtx.currentTime+duration);
+}
+
+function startTimer(){
+  if(!audioCtx) audioCtx=new (window.AudioContext||window.webkitAudioContext)();
+  if(running) return;
+  running=true;
+  startTime=Date.now()-pauseOffset;
+  requestAnimationFrame(loop);
+}
+
+function pauseTimer(){
+  running=false;
+  pauseOffset=Date.now()-startTime;
+}
+
+function resetTimer(){
+  running=false;
+  remaining=total;
+  pauseOffset=0;
+  lastSecond=-1;
+  timerEl.textContent="02:00";
+  timerEl.classList.remove("flash");
+  reward.style.display="none";
+  particles=[];
+  mobs=[];
+  draw();
+}
+
+function formatTime(s){
+  const m=Math.floor(s/60);
+  const sec=s%60;
+  return String(m).padStart(2,"0")+":"+String(sec).padStart(2,"0");
+}
+
+let mobs=[];
+let particles=[];
 
 function spawnMob(){
+  if(mobs.length>15) return;
   mobs.push({
-    x:Math.random()*W,
-    y:H*0.55 + Math.random()*100,
-    dir:Math.random()<0.5?-1:1,
-    speed:0.5+Math.random()
+    x:Math.random()*canvas.width/dpr,
+    y:canvas.height/dpr-40,
+    dir:Math.random()>0.5?1:-1
   });
 }
 
-function drawSky(color){
-  ctx.fillStyle = color;
-  ctx.fillRect(0,0,W,H);
-}
-
-function drawGround(color){
-  ctx.fillStyle = color;
-  ctx.fillRect(0,H*0.5,W,H*0.5);
-}
-
-function drawSun(){
-  ctx.fillStyle='#FFD700';
-  ctx.beginPath();
-  ctx.arc(W*0.8,80,30,0,Math.PI*2);
-  ctx.fill();
-}
-
-function drawTrees(){
-  for(let i=0;i<5;i++){
-    const x = (i*200 + elapsed*40) % W;
-    ctx.fillStyle='#8B4513';
-    ctx.fillRect(x,H*0.5-60,20,60);
-    ctx.fillStyle='#2E8B57';
-    ctx.fillRect(x-20,H*0.5-90,60,40);
-  }
-}
-
-function drawWater(){
-  ctx.fillStyle='#1E90FF';
-  ctx.fillRect(0,H*0.65,W,40);
-}
-
-function drawHand(){
-  const bob = Math.sin(elapsed*10)*5;
-  ctx.fillStyle='#F1C27D';
-  ctx.fillRect(W/2-20,H-100+bob,40,60);
-  ctx.fillStyle='#fff';
-  ctx.fillRect(W/2-10,H-120+bob,20,20);
-}
-
-function updateMobs(){
-  mobs.forEach(m=>{
-    m.x += m.speed*m.dir;
-    if(m.x<0||m.x>W) m.dir*=-1;
-    ctx.fillStyle='#fff';
-    ctx.fillRect(m.x,m.y,20,20);
-  });
-}
-
-function spawnParticles(x,y,color){
-  for(let i=0;i<20;i++){
+function spawnFireworks(){
+  for(let i=0;i<100;i++){
     particles.push({
-      x,y,
-      vx:(Math.random()-0.5)*4,
-      vy:(Math.random()-0.5)*4,
-      life:60,
-      color
+      x:canvas.width/(2*dpr),
+      y:canvas.height/(2*dpr),
+      vx:(Math.random()-0.5)*6,
+      vy:(Math.random()-0.5)*6,
+      life:80
     });
   }
 }
 
-function updateParticles(){
+function update(){
+  if(running){
+    const elapsed=Math.floor((Date.now()-startTime)/1000);
+    remaining=total-elapsed;
+    if(remaining<=0){
+      remaining=0;
+      running=false;
+      reward.style.display="flex";
+      spawnFireworks();
+      beep(900,0.3);
+    }
+    if(remaining!==lastSecond){
+      lastSecond=remaining;
+      if(remaining>0){
+        if(remaining<=10) beep(1200,0.15);
+        else beep(600,0.05);
+        spawnMob();
+      }
+    }
+  }
+
+  mobs.forEach(m=>m.x+=m.dir*0.5);
+  mobs=mobs.filter(m=>m.x>-20 && m.x<canvas.width/dpr+20);
+
   particles.forEach(p=>{
-    ctx.fillStyle=p.color;
-    ctx.fillRect(p.x,p.y,4,4);
     p.x+=p.vx;
     p.y+=p.vy;
+    p.vy+=0.1;
     p.life--;
   });
   particles=particles.filter(p=>p.life>0);
 }
 
-function update(dt){
-  if(!running) return;
-
-  elapsed+=dt;
-
-  const sec = Math.floor(elapsed);
-  if(sec!==lastSecond){
-    lastSecond=sec;
-    spawnMob();
-  }
-
-  const remaining = TOTAL - sec;
-  timerEl.textContent = formatTime(remaining);
-  xpEl.style.width = (elapsed/TOTAL*100)+'%';
-
-  if(remaining<=10){
-    timerEl.style.color = sec%2?'#ff0000':'#fff';
-  } else {
-    timerEl.style.color = '#fff';
-  }
-
-  biomeIndex = Math.floor(elapsed/30)%biomes.length;
-
-  if(elapsed>=TOTAL){
-    running=false;
-    showReward();
-  }
-}
-
-function formatTime(s){
-  s=Math.max(0,s);
-  const m=Math.floor(s/60);
-  const sec=s%60;
-  return m+':'+(sec<10?'0':'')+sec;
-}
-
 function draw(){
-  const biome = biomes[biomeIndex];
-  drawSky(biome.sky);
-  drawGround(biome.ground);
-  drawSun();
-  drawTrees();
-  drawWater();
-  updateMobs();
-  updateParticles();
-  drawHand();
+  ctx.fillStyle="#87CEEB";
+  ctx.fillRect(0,0,canvas.width/dpr,canvas.height/dpr);
+
+  ctx.fillStyle="#228B22";
+  ctx.fillRect(0,canvas.height/dpr-60,canvas.width/dpr,60);
+
+  mobs.forEach(m=>{
+    ctx.fillStyle="#8B4513";
+    ctx.fillRect(m.x,m.y,20,20);
+  });
+
+  particles.forEach(p=>{
+    ctx.fillStyle="yellow";
+    ctx.fillRect(p.x,p.y,4,4);
+  });
 }
 
-let lastTime = performance.now();
-function loop(now){
-  const dt = Math.min(0.05,(now-lastTime)/1000);
-  lastTime = now;
-  update(dt);
+function loop(){
+  update();
   draw();
+  timerEl.textContent=formatTime(remaining);
+
+  if(remaining<=10 && remaining>0){
+    timerEl.classList.add("flash");
+  } else {
+    timerEl.classList.remove("flash");
+  }
+
   if(running||particles.length>0)
     requestAnimationFrame(loop);
 }
-requestAnimationFrame(loop);
 
-document.getElementById('start').onclick=()=>{
-  running=true;
-  document.getElementById('start').style.display='none';
-  document.getElementById('pause').style.display='inline-block';
-  document.getElementById('reset').style.display='inline-block';
-};
-
-document.getElementById('pause').onclick=()=>{
-  running=false;
-  document.getElementById('pause').style.display='none';
-  document.getElementById('start').style.display='inline-block';
-};
-
-document.getElementById('reset').onclick=()=>restart();
-
-function restart(){
-  elapsed=0;
-  mobs=[];
-  particles=[];
-  running=true;
-  document.getElementById('reward').style.display='none';
-}
-
-function showReward(){
-  spawnParticles(W/2,H/2,'#7CFC00');
-  document.getElementById('reward').style.display='flex';
-}
+draw();
 </script>
 </body>
 </html>
