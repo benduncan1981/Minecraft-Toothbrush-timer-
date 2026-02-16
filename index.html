@@ -2,18 +2,19 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Oscar's Brush Quest</title>
-
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Oscar's Pixel Brushing Quest</title>
 <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
-
 <style>
 :root{
-  --green:#55ff55;
-  --red:#ff4444;
-  --dark:#1a1a1a;
-  --panel:#2b2b2b;
-  --border:#000;
+  --sky:#7ec0ee;
+  --grass1:#5fbf3f;
+  --grass2:#4aa52e;
+  --dirt1:#7a4b1f;
+  --dirt2:#5e3716;
+  --stone1:#9ea7ad;
+  --stone2:#7f8a90;
+  --xp:#7CFC00;
 }
 
 *{
@@ -23,268 +24,279 @@
 
 body{
   margin:0;
-  background:#111;
+  font-family:'Press Start 2P', monospace;
   color:white;
-  font-family:'Press Start 2P', cursive;
+  height:100vh;
   overflow:hidden;
   display:flex;
-  flex-direction:column;
-  height:100vh;
+  justify-content:center;
+  align-items:center;
+  background:
+    repeating-linear-gradient(
+      0deg,
+      var(--grass1) 0px,
+      var(--grass1) 8px,
+      var(--grass2) 8px,
+      var(--grass2) 16px
+    );
 }
 
-header{
-  text-align:center;
-  padding:12px;
-  font-size:14px;
-}
-
-#gameContainer{
-  position:relative;
-  flex:1;
-}
-
-canvas{
-  display:block;
-  width:100%;
-  height:100%;
-  image-rendering:pixelated;
-}
-
-#ui{
+.sky{
   position:absolute;
-  top:50%;
-  left:50%;
-  transform:translate(-50%,-50%);
+  top:0;
+  width:100%;
+  height:40%;
+  background:
+    repeating-linear-gradient(
+      90deg,
+      var(--sky) 0px,
+      var(--sky) 16px,
+      #6bb5e5 16px,
+      #6bb5e5 32px
+    );
+}
+
+.cloud{
+  position:absolute;
+  width:80px;
+  height:32px;
+  background:white;
+  image-rendering:pixelated;
+  animation:cloudMove 40s linear infinite;
+}
+
+@keyframes cloudMove{
+  from{left:-100px;}
+  to{left:110%;}
+}
+
+.container{
+  position:relative;
   text-align:center;
+  width:90%;
+  max-width:480px;
+  background:
+    repeating-linear-gradient(
+      45deg,
+      var(--stone1) 0px,
+      var(--stone1) 8px,
+      var(--stone2) 8px,
+      var(--stone2) 16px
+    );
+  border:8px solid black;
+  padding:20px;
+  box-shadow:0 0 0 8px #333;
 }
 
-#timer{
-  font-size:48px;
-  margin-bottom:24px;
-  text-shadow:4px 4px 0 #000;
+h1{
+  font-size:14px;
+  margin-bottom:15px;
+  text-shadow:4px 4px black;
 }
 
-.flash{
+.timer{
+  font-size:36px;
+  margin:20px 0;
+  text-shadow:5px 5px black;
+}
+
+.zone{
+  font-size:10px;
+  margin-bottom:10px;
+  color:#4de3ff;
+}
+
+button{
+  font-family:'Press Start 2P', monospace;
+  background:
+    repeating-linear-gradient(
+      0deg,
+      var(--dirt1) 0px,
+      var(--dirt1) 8px,
+      var(--dirt2) 8px,
+      var(--dirt2) 16px
+    );
+  border:6px solid black;
+  color:white;
+  padding:14px;
+  width:100%;
+  font-size:10px;
+  margin-top:15px;
+  box-shadow:4px 4px #000;
+}
+
+button:active{
+  transform:translate(4px,4px);
+  box-shadow:none;
+}
+
+.xp-bar{
+  width:100%;
+  height:18px;
+  background:#222;
+  border:4px solid black;
+  margin-top:15px;
+  position:relative;
+}
+
+.xp-fill{
+  height:100%;
+  width:0%;
+  background:
+    repeating-linear-gradient(
+      90deg,
+      var(--xp) 0px,
+      var(--xp) 8px,
+      #63d900 8px,
+      #63d900 16px
+    );
+  transition:width 0.5s linear;
+}
+
+.orb{
+  position:absolute;
+  width:8px;
+  height:8px;
+  background:var(--xp);
+  animation:orbRise 2s linear forwards;
+}
+
+@keyframes orbRise{
+  to{transform:translateY(-120px);opacity:0;}
+}
+
+.warning{
   animation:flash 0.5s infinite;
 }
 
 @keyframes flash{
-  0%{color:var(--red);}
-  50%{color:white;}
-  100%{color:var(--red);}
+  0%,100%{filter:none;}
+  50%{filter:brightness(1.8) hue-rotate(90deg);}
 }
 
-button{
-  font-family:'Press Start 2P', cursive;
-  font-size:12px;
-  padding:12px 16px;
-  margin:6px;
-  background:var(--panel);
-  color:white;
-  border:4px solid var(--border);
-  box-shadow:4px 4px 0 #000;
-}
-
-button:active{
-  transform:translate(2px,2px);
-  box-shadow:2px 2px 0 #000;
-}
-
-#reward{
+.achievement{
   position:absolute;
-  inset:0;
-  background:rgba(0,0,0,0.85);
+  top:20%;
+  left:50%;
+  transform:translateX(-50%);
+  background:black;
+  border:6px solid gold;
+  padding:20px;
   display:none;
-  justify-content:center;
-  align-items:center;
-  flex-direction:column;
-  font-size:18px;
   text-align:center;
+  animation:pop 0.4s ease-out forwards;
+}
+
+@keyframes pop{
+  from{transform:translateX(-50%) scale(0.5);}
+  to{transform:translateX(-50%) scale(1);}
 }
 </style>
 </head>
 <body>
 
-<header>Oscar's Brush Quest</header>
+<div class="sky"></div>
+<div class="cloud" style="top:40px;"></div>
+<div class="cloud" style="top:80px; animation-duration:60s;"></div>
 
-<div id="gameContainer">
-  <canvas id="game"></canvas>
-
-  <div id="ui">
-    <div id="timer">02:00</div>
-    <button onclick="startTimer()">START</button>
-    <button onclick="pauseTimer()">PAUSE</button>
-    <button onclick="resetTimer()">RESET</button>
-  </div>
-
-  <div id="reward">
-    <div>✨ YOU DID IT! ✨</div>
-    <button onclick="resetTimer()">PLAY AGAIN</button>
+<div class="container">
+  <h1>Oscar's Tooth Quest</h1>
+  <div class="timer" id="timer">02:00</div>
+  <div class="zone" id="zone">Tap Start To Begin</div>
+  <button id="startBtn">START BRUSHING</button>
+  <button id="resetBtn" style="display:none;">RESTART QUEST</button>
+  <div class="xp-bar">
+    <div class="xp-fill" id="xp"></div>
   </div>
 </div>
 
+<div class="achievement" id="achievement">
+  TREASURE UNLOCKED<br><br>
+  SUPER CLEAN TEETH<br><br>
+  Oscar Level Up!
+</div>
+
 <script>
-const canvas=document.getElementById("game");
-const ctx=canvas.getContext("2d");
-const dpr=window.devicePixelRatio||1;
+let totalTime=120;
+let timeLeft=120;
+let interval;
 
-function resize(){
-  canvas.width=window.innerWidth*dpr;
-  canvas.height=window.innerHeight*dpr;
-  canvas.style.width=window.innerWidth+"px";
-  canvas.style.height=window.innerHeight+"px";
-  ctx.setTransform(dpr,0,0,dpr,0,0);
-}
-window.addEventListener("resize",resize);
-resize();
+const timer=document.getElementById("timer");
+const zone=document.getElementById("zone");
+const xp=document.getElementById("xp");
+const achievement=document.getElementById("achievement");
+const startBtn=document.getElementById("startBtn");
+const resetBtn=document.getElementById("resetBtn");
 
-let total=120;
-let remaining=120;
-let running=false;
-let lastSecond=-1;
-let startTime=0;
-let pauseOffset=0;
-
-const timerEl=document.getElementById("timer");
-const reward=document.getElementById("reward");
-
-let audioCtx=null;
-
-function beep(freq=600,duration=0.1){
-  if(!audioCtx) return;
-  const osc=audioCtx.createOscillator();
-  const gain=audioCtx.createGain();
-  osc.connect(gain);
-  gain.connect(audioCtx.destination);
-  osc.frequency.value=freq;
-  gain.gain.value=0.1;
-  osc.start();
-  osc.stop(audioCtx.currentTime+duration);
-}
-
-function startTimer(){
-  if(!audioCtx) audioCtx=new (window.AudioContext||window.webkitAudioContext)();
-  if(running) return;
-  running=true;
-  startTime=Date.now()-pauseOffset;
-  requestAnimationFrame(loop);
-}
-
-function pauseTimer(){
-  running=false;
-  pauseOffset=Date.now()-startTime;
-}
-
-function resetTimer(){
-  running=false;
-  remaining=total;
-  pauseOffset=0;
-  lastSecond=-1;
-  timerEl.textContent="02:00";
-  timerEl.classList.remove("flash");
-  reward.style.display="none";
-  particles=[];
-  mobs=[];
-  draw();
-}
-
-function formatTime(s){
-  const m=Math.floor(s/60);
-  const sec=s%60;
-  return String(m).padStart(2,"0")+":"+String(sec).padStart(2,"0");
-}
-
-let mobs=[];
-let particles=[];
-
-function spawnMob(){
-  if(mobs.length>15) return;
-  mobs.push({
-    x:Math.random()*canvas.width/dpr,
-    y:canvas.height/dpr-40,
-    dir:Math.random()>0.5?1:-1
-  });
-}
-
-function spawnFireworks(){
-  for(let i=0;i<100;i++){
-    particles.push({
-      x:canvas.width/(2*dpr),
-      y:canvas.height/(2*dpr),
-      vx:(Math.random()-0.5)*6,
-      vy:(Math.random()-0.5)*6,
-      life:80
-    });
-  }
-}
+const zones=[
+  "Top Left Zone",
+  "Top Right Zone",
+  "Bottom Left Zone",
+  "Bottom Right Zone"
+];
 
 function update(){
-  if(running){
-    const elapsed=Math.floor((Date.now()-startTime)/1000);
-    remaining=total-elapsed;
-    if(remaining<=0){
-      remaining=0;
-      running=false;
-      reward.style.display="flex";
-      spawnFireworks();
-      beep(900,0.3);
-    }
-    if(remaining!==lastSecond){
-      lastSecond=remaining;
-      if(remaining>0){
-        if(remaining<=10) beep(1200,0.15);
-        else beep(600,0.05);
-        spawnMob();
-      }
-    }
+  let m=Math.floor(timeLeft/60);
+  let s=timeLeft%60;
+  timer.textContent=(m<10?"0":"")+m+":"+(s<10?"0":"")+s;
+
+  let progress=((120-timeLeft)/120)*100;
+  xp.style.width=progress+"%";
+
+  let zoneIndex=Math.floor((120-timeLeft)/30);
+  if(zoneIndex<4){
+    zone.textContent=zones[zoneIndex];
   }
 
-  mobs.forEach(m=>m.x+=m.dir*0.5);
-  mobs=mobs.filter(m=>m.x>-20 && m.x<canvas.width/dpr+20);
-
-  particles.forEach(p=>{
-    p.x+=p.vx;
-    p.y+=p.vy;
-    p.vy+=0.1;
-    p.life--;
-  });
-  particles=particles.filter(p=>p.life>0);
-}
-
-function draw(){
-  ctx.fillStyle="#87CEEB";
-  ctx.fillRect(0,0,canvas.width/dpr,canvas.height/dpr);
-
-  ctx.fillStyle="#228B22";
-  ctx.fillRect(0,canvas.height/dpr-60,canvas.width/dpr,60);
-
-  mobs.forEach(m=>{
-    ctx.fillStyle="#8B4513";
-    ctx.fillRect(m.x,m.y,20,20);
-  });
-
-  particles.forEach(p=>{
-    ctx.fillStyle="yellow";
-    ctx.fillRect(p.x,p.y,4,4);
-  });
-}
-
-function loop(){
-  update();
-  draw();
-  timerEl.textContent=formatTime(remaining);
-
-  if(remaining<=10 && remaining>0){
-    timerEl.classList.add("flash");
-  } else {
-    timerEl.classList.remove("flash");
+  if(timeLeft===10){
+    document.body.classList.add("warning");
   }
-
-  if(running||particles.length>0)
-    requestAnimationFrame(loop);
 }
 
-draw();
+function orb(){
+  const o=document.createElement("div");
+  o.className="orb";
+  o.style.left=Math.random()*window.innerWidth+"px";
+  o.style.bottom="0px";
+  document.body.appendChild(o);
+  setTimeout(()=>o.remove(),2000);
+}
+
+function finish(){
+  clearInterval(interval);
+  achievement.style.display="block";
+  zone.textContent="Quest Complete!";
+  startBtn.style.display="none";
+  resetBtn.style.display="block";
+  if(navigator.vibrate) navigator.vibrate([200,100,200]);
+  document.body.classList.remove("warning");
+}
+
+function start(){
+  startBtn.disabled=true;
+  if(navigator.vibrate) navigator.vibrate(100);
+  interval=setInterval(()=>{
+    timeLeft--;
+    update();
+    orb();
+    if(timeLeft<=0) finish();
+  },1000);
+}
+
+function reset(){
+  timeLeft=120;
+  xp.style.width="0%";
+  achievement.style.display="none";
+  zone.textContent="Tap Start To Begin";
+  startBtn.disabled=false;
+  startBtn.style.display="block";
+  resetBtn.style.display="none";
+  timer.textContent="02:00";
+}
+
+startBtn.addEventListener("click",start);
+resetBtn.addEventListener("click",reset);
 </script>
+
 </body>
 </html>
