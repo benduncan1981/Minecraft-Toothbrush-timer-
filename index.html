@@ -2,167 +2,187 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-<title>Oscar's Tooth Quest</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Oscar's Pixel Brushing Quest</title>
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
 <style>
-body {margin:0; overflow:hidden; font-family:'Press Start 2P', monospace; background:black;}
-canvas {image-rendering: pixelated; display:block;}
-#ui {
-  position:absolute; top:5px; left:5px; color:white; z-index:10; font-size:18px;
-  text-shadow:2px 2px 4px black;
+:root{
+  --sky:#7ec0ee;
+  --grass1:#5fbf3f;
+  --grass2:#4aa52e;
+  --dirt1:#7a4b1f;
+  --dirt2:#5e3716;
+  --stone1:#9ea7ad;
+  --stone2:#7f8a90;
+  --xp:#ff69b4;
 }
-button {
-  display:block; margin-top:5px; font-size:16px; padding:5px 10px;
-}
-#reward {position:absolute; bottom:20px; width:100%; text-align:center; font-size:24px; color:gold; text-shadow:2px 2px 4px black;}
+
+/* Reset + basic styling */
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+body{margin:0;font-family:'Press Start 2P',monospace;color:white;height:100vh;overflow:hidden;display:flex;justify-content:center;align-items:center;background:repeating-linear-gradient(0deg,var(--grass1) 0px,var(--grass1) 8px,var(--grass2) 8px,var(--grass2) 16px);}
+.sky{position:absolute;top:0;width:100%;height:40%;background:repeating-linear-gradient(90deg,var(--sky) 0px,var(--sky) 16px,#6bb5e5 16px,#6bb5e5 32px);}
+.sun{position:absolute;top:20px;right:40px;width:64px;height:64px;background:repeating-linear-gradient(0deg,#ffd800 0px,#ffd800 8px,#ffcc00 8px,#ffcc00 16px);border:4px solid #e6b800;image-rendering:pixelated;}
+.cloud{position:absolute;width:80px;height:32px;background:white;image-rendering:pixelated;animation:cloudMove 40s linear infinite;}
+@keyframes cloudMove{from{left:-100px;}to{left:110%;}}
+.container{position:relative;text-align:center;width:90%;max-width:480px;background:repeating-linear-gradient(45deg,var(--stone1) 0px,var(--stone1) 8px,var(--stone2) 8px,var(--stone2) 16px);border:8px solid black;padding:20px;box-shadow:0 0 0 8px #333;}
+h1{font-size:14px;margin-bottom:15px;text-shadow:4px 4px black;}
+.timer{font-size:36px;margin:20px 0;text-shadow:5px 5px black;}
+.zone{font-size:10px;margin-bottom:10px;color:#ff8cf0;}
+button{font-family:'Press Start 2P',monospace;background:repeating-linear-gradient(0deg,var(--dirt1) 0px,var(--dirt1) 8px,var(--dirt2) 8px,var(--dirt2) 16px);border:6px solid black;color:white;padding:14px;width:100%;font-size:10px;margin-top:15px;box-shadow:4px 4px #000;}
+button:active{transform:translate(4px,4px);box-shadow:none;}
+.xp-bar{width:100%;height:18px;background:#222;border:4px solid black;margin-top:15px;position:relative;}
+.xp-fill{height:100%;width:0%;background:repeating-linear-gradient(90deg,var(--xp) 0px,var(--xp) 8px,#ff85c1 8px,#ff85c1 16px);transition:width 0.5s linear;}
+.orb{position:absolute;width:8px;height:8px;background:var(--xp);animation:orbRise 2s linear forwards;}
+@keyframes orbRise{to{transform:translateY(-120px);opacity:0;}}
+.warning{animation:flash 0.5s infinite;}
+@keyframes flash{0%,100%{filter:none;}50%{filter:brightness(1.8);}}
+.achievement{position:absolute;top:20%;left:50%;transform:translateX(-50%);background:black;border:6px solid gold;padding:20px;display:none;text-align:center;animation:pop 0.4s ease-out forwards;}
+@keyframes pop{from{transform:translateX(-50%) scale(0.5);}to{transform:translateX(-50%) scale(1);}}
 </style>
 </head>
 <body>
-<canvas id="game"></canvas>
 
-<div id="ui">
-  <div id="timer">02:00</div>
-  <div id="biome">Tap Start to Begin</div>
-  <div id="streak"></div>
-  <div id="totalDays"></div>
+<div class="sky"></div>
+<div class="sun"></div>
+<div class="cloud" style="top:40px;"></div>
+<div class="cloud" style="top:80px; animation-duration:60s;"></div>
+
+<div class="container">
+  <h1>Oscar's Tooth Quest</h1>
+  <div class="timer" id="timer">02:00</div>
+  <div class="zone" id="zone">Tap Start To Begin</div>
   <button id="startBtn">START BRUSHING</button>
-  <button id="manualBtn">Add Manual Brush</button>
+  <button id="pauseBtn" style="display:none;">PAUSE</button>
+  <button id="resetBtn" style="display:none;">RESTART QUEST</button>
+  <button id="manualBtn">MANUAL BRUSH</button>
+  <div class="xp-bar">
+    <div class="xp-fill" id="xp"></div>
+  </div>
+  <div class="streak" id="streak"></div>
+  <div class="totalDays" id="totalDays"></div>
 </div>
-<div id="reward"></div>
+
+<div class="achievement" id="achievement">
+  TREASURE UNLOCKED<br><br>
+  SUPER CLEAN TEETH<br><br>
+  Oscar Level Up!
+</div>
 
 <script>
-const canvas=document.getElementById('game');
-const ctx=canvas.getContext('2d');
-let cw=canvas.width=window.innerWidth;
-let ch=canvas.height=window.innerHeight;
-
-const TILE=32;
-let brushing=false;
+let totalTime=120;
+let timeLeft=120;
+let interval;
+let isPaused=false;
 let startTime=0;
-let arrows=[];
-let dragonX=0, dragonDir=2;
-let rewardMessage="";
 
-const biomes=['Plains','Flower Forest','Nether','The End'];
+const timer=document.getElementById("timer");
+const zone=document.getElementById("zone");
+const xp=document.getElementById("xp");
+const achievement=document.getElementById("achievement");
+const startBtn=document.getElementById("startBtn");
+const pauseBtn=document.getElementById("pauseBtn");
+const resetBtn=document.getElementById("resetBtn");
+const manualBtn=document.getElementById("manualBtn");
+const streakDisplay=document.getElementById("streak");
+const totalDisplay=document.getElementById("totalDays");
 
-// Touch-friendly zones
-let zones=[
-  {x:0,y:0,w:0,h:0,brushed:false},
-  {x:0,y:0,w:0,h:0,brushed:false},
-  {x:0,y:0,w:0,h:0,brushed:false},
-  {x:0,y:0,w:0,h:0,brushed:false}
+const zones=[
+  "Top Left Zone",
+  "Top Right Zone",
+  "Bottom Left Zone",
+  "Bottom Right Zone"
 ];
 
-// ---------- STORAGE ----------
+const biomes=[
+  "Plains","Flower Forest","Nether","The End"
+];
+
+const audioCtx=new (window.AudioContext||window.webkitAudioContext)();
+function beep(){
+  const osc=audioCtx.createOscillator();
+  const gain=audioCtx.createGain();
+  osc.connect(gain); gain.connect(audioCtx.destination);
+  osc.type="square"; osc.frequency.value=800;
+  gain.gain.setValueAtTime(0.1,audioCtx.currentTime);
+  osc.start(); osc.stop(audioCtx.currentTime+0.08);
+}
+
+// ---------- LocalStorage Tracking ----------
 function getToday(){return new Date().toISOString().split('T')[0];}
-function loadData(){return {streak:parseInt(localStorage.getItem('streak')||0), total:parseInt(localStorage.getItem('totalDays')||0), last:localStorage.getItem('lastDate')||""};}
+function loadData(){return {streak:parseInt(localStorage.getItem('streak')||0),total:parseInt(localStorage.getItem('totalDays')||0),last:localStorage.getItem('lastDate')||""};}
 function saveData(d){localStorage.setItem('streak',d.streak); localStorage.setItem('totalDays',d.total); localStorage.setItem('lastDate',d.last);}
-function updateUI(){let d=loadData(); document.getElementById('streak').innerText="Streak: "+d.streak; document.getElementById('totalDays').innerText="Total days brushed: "+d.total;}
-function rewardCheck(streak){if(streak%7===0) rewardMessage="Weekly Reward Unlocked!";}
+function updateUI(){let d=loadData(); streakDisplay.innerText="Streak: "+d.streak; totalDisplay.innerText="Total days brushed: "+d.total;}
+function rewardCheck(streak){if(streak%7===0) achievement.style.display="block";}
 function registerBrush(){
   let d=loadData(); const today=getToday();
   if(d.last!==today){
     let y=new Date(); y.setDate(y.getDate()-1); const yd=y.toISOString().split('T')[0];
     if(d.last===yd) d.streak++; else d.streak=1;
-    d.total++; d.last=today;
-    rewardCheck(d.streak); saveData(d); updateUI();
+    d.total++; d.last=today; saveData(d); updateUI(); rewardCheck(d.streak);
   }
 }
 
-// ---------- START ----------
-function startBrush(){brushing=true; startTime=Date.now(); arrows=[]; rewardMessage=""; zones.forEach(z=>z.brushed=false); document.getElementById('biome').innerText="Overworld Plains";}
-
-// ---------- BLOCK DRAW ----------
-function block(x,y,w,h,color){ctx.fillStyle=color; ctx.fillRect(x,y,w,h); ctx.strokeStyle='rgba(0,0,0,0.2)'; ctx.strokeRect(x,y,w,h);}
-
-// ---------- BIOMES ----------
-function drawPlains(){
-  ctx.fillStyle='#87CEEB'; ctx.fillRect(0,0,cw,ch);
-  for(let x=0;x<cw;x+=TILE) block(x,ch-200,TILE,200,'#3CB043');
-  drawCloud(200,100); drawCloud(500,150); drawTree(cw*0.2,ch-240); drawTree(cw*0.6,ch-240);
-  drawSheep(cw*0.4,ch-180);
-  updateZones(ch-250,ch-180);
-}
-function drawFlowerForest(){
-  ctx.fillStyle='#A7D8FF'; ctx.fillRect(0,0,cw,ch);
-  for(let x=0;x<cw;x+=TILE) block(x,ch-200,TILE,200,'#4CAF50');
-  drawCloud(300,120); drawCloud(600,160); drawTree(cw*0.3,ch-240); drawTree(cw*0.7,ch-240);
-  drawSheep(cw*0.5,ch-180);
-  for(let i=0;i<10;i++){ctx.fillStyle='pink'; ctx.fillRect(i*100,ch-210,8,8);}
-  updateZones(ch-250,ch-180);
-}
-function drawNether(){
-  ctx.fillStyle='#330000'; ctx.fillRect(0,0,cw,ch);
-  for(let x=0;x<cw;x+=TILE) block(x,ch-200,TILE,200,'#8B0000');
-  ctx.fillStyle='orange'; ctx.fillRect(0,ch-100,cw,100);
-  drawPiglin(cw/2,ch-180);
-}
-function drawEnd(){
-  ctx.fillStyle='#111122'; ctx.fillRect(0,0,cw,ch);
-  for(let x=0;x<cw;x+=TILE) block(x,ch-200,TILE,200,'#444');
-  drawDragon();
-  arrows.forEach(a=>{a.y-=8; ctx.fillStyle='white'; ctx.fillRect(a.x,a.y,4,20);});
+// ---------- Timer Logic ----------
+function update(){
+  let m=Math.floor(timeLeft/60);
+  let s=timeLeft%60;
+  timer.textContent=(m<10?"0":"")+m+":"+(s<10?"0":"")+s;
+  let progress=((totalTime-timeLeft)/totalTime)*100;
+  xp.style.width=progress+"%";
+  let zoneIndex=Math.floor((totalTime-timeLeft)/30);
+  if(zoneIndex<4) zone.textContent=zones[zoneIndex];
+  if(timeLeft===10) document.body.classList.add("warning");
 }
 
-// ---------- OBJECTS ----------
-function drawCloud(x,y){ctx.fillStyle='white'; ctx.fillRect(x,y,96,32); ctx.fillRect(x+16,y-16,64,32);}
-function drawTree(x,y){block(x,y,32,64,'#8B5A2B'); ctx.fillStyle='#228B22'; ctx.fillRect(x-16,y-32,64,64);}
-function drawSheep(x,y){ctx.fillStyle='white'; ctx.fillRect(x,y,32,16);}
-function drawPiglin(x,y){ctx.fillStyle='#ffb6c1'; ctx.fillRect(x,y,32,24);}
-function drawDragon(){dragonX+=dragonDir; if(dragonX<100||dragonX>cw-200) dragonDir*=-1; ctx.fillStyle='#551A8B'; ctx.fillRect(dragonX,150,160,32); ctx.fillRect(dragonX+40,120,64,32);}
-
-// ---------- ZONES ----------
-function updateZones(top,bottom){
-  const width=cw/4-20;
-  for(let i=0;i<4;i++){
-    zones[i].x=20+i*(width+10); zones[i].y=top; zones[i].w=width; zones[i].h=bottom-top;
-  }
-}
-canvas.addEventListener('pointerdown',e=>{
-  if(!brushing) return;
-  const rect=canvas.getBoundingClientRect();
-  const mx=e.clientX-rect.left, my=e.clientY-rect.top;
-  zones.forEach(z=>{
-    if(!z.brushed && mx>z.x && mx<z.x+z.w && my>z.y && my<z.y+z.h){
-      z.brushed=true;
-      for(let i=0;i<5;i++){ctx.fillStyle='pink'; ctx.fillRect(z.x+Math.random()*z.w,z.y+Math.random()*z.h,4,4);}
-      if('vibrate' in navigator) navigator.vibrate(50);
-      if(getBiomeIndex()===3) arrows.push({x:mx,y:my});
-    }
-  });
-});
-
-// ---------- LOOP ----------
-function getBiomeIndex(){return Math.min(Math.floor((Date.now()-startTime)/1000/30),3);}
-function animate(){
-  requestAnimationFrame(animate);
-  ctx.clearRect(0,0,cw,ch);
-  if(!brushing) return;
-  const elapsed=(Date.now()-startTime)/1000;
-  const timeLeft=Math.max(0,120-elapsed);
-  document.getElementById('timer').innerText='Time: '+Math.ceil(timeLeft);
-  const biomeIndex=getBiomeIndex();
-  document.getElementById('biome').innerText='Biome: '+biomes[biomeIndex];
-  if(biomeIndex===0) drawPlains();
-  else if(biomeIndex===1) drawFlowerForest();
-  else if(biomeIndex===2) drawNether();
-  else drawEnd();
-  if(elapsed>=120){brushing=false; registerBrush(); document.getElementById('reward').innerText=rewardMessage;}
+function orb(){
+  const o=document.createElement("div");
+  o.className="orb"; o.style.left=Math.random()*window.innerWidth+"px"; o.style.bottom="0px";
+  document.body.appendChild(o); setTimeout(()=>o.remove(),2000);
 }
 
-// ---------- BUTTONS ----------
-document.getElementById('startBtn').addEventListener('click',startBrush);
-document.getElementById('manualBtn').addEventListener('click',()=>{registerBrush();});
+function finish(){
+  clearInterval(interval);
+  achievement.style.display="block";
+  zone.textContent="Quest Complete!";
+  startBtn.style.display="none"; pauseBtn.style.display="none"; resetBtn.style.display="block";
+  if(navigator.vibrate) navigator.vibrate([200,100,200]);
+  document.body.classList.remove("warning");
+  registerBrush();
+}
 
-// ---------- INIT ----------
+function tick(){
+  if(isPaused) return;
+  timeLeft--;
+  beep();
+  update();
+  orb();
+  if(timeLeft<=0) finish();
+}
+
+function start(){
+  startBtn.style.display="none"; pauseBtn.style.display="block";
+  startTime=Date.now();
+  interval=setInterval(tick,1000);
+}
+
+function pause(){
+  isPaused=!isPaused;
+  pauseBtn.textContent=isPaused?"RESUME":"PAUSE";
+}
+
+function reset(){
+  clearInterval(interval); timeLeft=totalTime; xp.style.width="0%"; achievement.style.display="none";
+  zone.textContent="Tap Start To Begin"; startBtn.style.display="block"; pauseBtn.style.display="none"; resetBtn.style.display="none";
+  timer.textContent="02:00"; isPaused=false; document.body.classList.remove("warning");
+}
+
+startBtn.addEventListener("click",start);
+pauseBtn.addEventListener("click",pause);
+resetBtn.addEventListener("click",reset);
+manualBtn.addEventListener("click",registerBrush);
+
 updateUI();
-animate();
-
-// ---------- RESIZE ----------
-window.addEventListener('resize',()=>{
-  cw=canvas.width=window.innerWidth;
-  ch=canvas.height=window.innerHeight;
-});
 </script>
+
 </body>
 </html>
