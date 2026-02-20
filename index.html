@@ -2,9 +2,9 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<title>Minecraft Brush Adventure</title>
+<title>Minecraft Brush Quest</title>
 <style>
-body { margin:0; overflow:hidden; font-family:Arial; background:black; }
+body { margin:0; overflow:hidden; background:black; font-family:Arial; }
 #ui {
   position:absolute;
   top:10px;
@@ -12,9 +12,8 @@ body { margin:0; overflow:hidden; font-family:Arial; background:black; }
   color:white;
   z-index:10;
   font-size:18px;
-  text-shadow:2px 2px 4px black;
 }
-button { font-size:16px; margin-top:5px; }
+button { margin-top:4px; font-size:16px; }
 #reward {
   position:absolute;
   bottom:20px;
@@ -22,7 +21,6 @@ button { font-size:16px; margin-top:5px; }
   text-align:center;
   font-size:28px;
   color:gold;
-  text-shadow:3px 3px 6px black;
 }
 </style>
 </head>
@@ -32,39 +30,150 @@ button { font-size:16px; margin-top:5px; }
   <div id="timer"></div>
   <div id="biome"></div>
   <div id="streak"></div>
-  <div id="totalDays"></div>
+  <div id="total"></div>
   <button onclick="startBrush()">Start Brushing</button>
   <button onclick="manualBrush()">Add Manual Brush</button>
 </div>
-
 <div id="reward"></div>
-<canvas id="game"></canvas>
+
+<script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
 
 <script>
-const canvas = document.getElementById("game");
-const ctx = canvas.getContext("2d");
-canvas.width = window.innerWidth;
-canvas.height = window.innerHeight;
+/* ---------- BASIC SETUP ---------- */
+
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000);
+const renderer = new THREE.WebGLRenderer({antialias:true});
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.shadowMap.enabled = true;
+document.body.appendChild(renderer.domElement);
+
+camera.position.set(0,10,25);
+
+const light = new THREE.DirectionalLight(0xffffff,1);
+light.position.set(10,20,10);
+light.castShadow = true;
+scene.add(light);
+scene.add(new THREE.AmbientLight(0x888888));
+
+/* ---------- WORLD OBJECTS ---------- */
+
+let worldGroup = new THREE.Group();
+scene.add(worldGroup);
+
+function clearWorld(){
+  while(worldGroup.children.length > 0){
+    worldGroup.remove(worldGroup.children[0]);
+  }
+}
+
+function createGround(color){
+  const geo = new THREE.BoxGeometry(100,2,100);
+  const mat = new THREE.MeshLambertMaterial({color});
+  const ground = new THREE.Mesh(geo,mat);
+  ground.position.y = -1;
+  ground.receiveShadow = true;
+  worldGroup.add(ground);
+}
+
+function createTree(x,z){
+  const trunk = new THREE.Mesh(
+    new THREE.BoxGeometry(1,4,1),
+    new THREE.MeshLambertMaterial({color:0x8b5a2b})
+  );
+  trunk.position.set(x,2,z);
+  trunk.castShadow = true;
+
+  const leaves = new THREE.Mesh(
+    new THREE.BoxGeometry(4,4,4),
+    new THREE.MeshLambertMaterial({color:0x228b22})
+  );
+  leaves.position.set(x,5,z);
+  leaves.castShadow = true;
+
+  worldGroup.add(trunk);
+  worldGroup.add(leaves);
+}
+
+function createAnimal(x,z,color){
+  const body = new THREE.Mesh(
+    new THREE.BoxGeometry(2,2,3),
+    new THREE.MeshLambertMaterial({color})
+  );
+  body.position.set(x,1,z);
+  body.castShadow = true;
+  worldGroup.add(body);
+}
+
+let dragon;
+let arrows = [];
+
+function createDragon(){
+  dragon = new THREE.Mesh(
+    new THREE.BoxGeometry(8,2,3),
+    new THREE.MeshLambertMaterial({color:0x551a8b})
+  );
+  dragon.position.set(0,15,0);
+  dragon.castShadow = true;
+  worldGroup.add(dragon);
+}
+
+function fireArrow(){
+  const arrow = new THREE.Mesh(
+    new THREE.BoxGeometry(0.3,3,0.3),
+    new THREE.MeshBasicMaterial({color:0xffffff})
+  );
+  arrow.position.set(0,1,20);
+  arrows.push(arrow);
+  worldGroup.add(arrow);
+}
+
+/* ---------- BIOMES ---------- */
+
+function loadBiome(index){
+  clearWorld();
+  arrows = [];
+
+  if(index === 0){
+    scene.background = new THREE.Color(0x87ceeb);
+    createGround(0x3cb043);
+    createTree(-10,-5);
+    createTree(5,-8);
+    createAnimal(0,-5,0xffffff);
+  }
+
+  if(index === 1){
+    scene.background = new THREE.Color(0x6b8eae);
+    createGround(0x4a7023);
+    createTree(-8,-4);
+    createTree(8,-6);
+    createAnimal(4,-4,0xff6600);
+  }
+
+  if(index === 2){
+    scene.background = new THREE.Color(0x330000);
+    createGround(0x8b0000);
+    createAnimal(0,-5,0xffb6c1);
+  }
+
+  if(index === 3){
+    scene.background = new THREE.Color(0x111122);
+    createGround(0x444444);
+    createDragon();
+  }
+}
+
+/* ---------- TIMER + STREAK ---------- */
 
 let brushing = false;
 let startTime = 0;
-let arrows = [];
-let dragonX = canvas.width/2;
-let dragonDir = 1;
-let rewardMessage = "";
+let currentBiome = -1;
 
-const biomes = [
-  "Overworld Plains",
-  "Overworld Taiga",
-  "Nether",
-  "The End"
-];
-
-function getToday() {
+function getToday(){
   return new Date().toISOString().split("T")[0];
 }
 
-function loadData() {
+function loadData(){
   return {
     streak: parseInt(localStorage.getItem("streak")||0),
     total: parseInt(localStorage.getItem("totalDays")||0),
@@ -72,187 +181,95 @@ function loadData() {
   };
 }
 
-function saveData(data) {
-  localStorage.setItem("streak",data.streak);
-  localStorage.setItem("totalDays",data.total);
-  localStorage.setItem("lastDate",data.last);
+function saveData(d){
+  localStorage.setItem("streak",d.streak);
+  localStorage.setItem("totalDays",d.total);
+  localStorage.setItem("lastDate",d.last);
 }
 
-function updateDisplay() {
-  let data = loadData();
-  document.getElementById("streak").innerText = "Streak: "+data.streak+" days";
-  document.getElementById("totalDays").innerText = "Total days brushed: "+data.total;
+function updateUI(){
+  const d = loadData();
+  document.getElementById("streak").innerText = "Streak: "+d.streak;
+  document.getElementById("total").innerText = "Total days: "+d.total;
 }
 
-function rewardCheck(streak) {
-  if (streak % 7 === 0) {
-    rewardMessage = "Weekly Reward Unlocked!";
+function registerBrush(){
+  let d = loadData();
+  const today = getToday();
+  if(d.last !== today){
+    let y = new Date();
+    y.setDate(y.getDate()-1);
+    let yd = y.toISOString().split("T")[0];
+
+    if(d.last === yd) d.streak++;
+    else d.streak = 1;
+
+    d.total++;
+    d.last = today;
+    saveData(d);
+
+    if(d.streak % 7 === 0){
+      document.getElementById("reward").innerText = "Weekly Reward Unlocked!";
+    }
+
+    updateUI();
   }
 }
 
-function registerBrush() {
-  let data = loadData();
-  let today = getToday();
-  if (data.last !== today) {
-    let yesterday = new Date();
-    yesterday.setDate(yesterday.getDate()-1);
-    let yDate = yesterday.toISOString().split("T")[0];
-
-    if (data.last === yDate) data.streak++;
-    else data.streak = 1;
-
-    data.total++;
-    data.last = today;
-    rewardCheck(data.streak);
-    saveData(data);
-    updateDisplay();
-  }
-}
-
-function manualBrush() {
+function manualBrush(){
   registerBrush();
 }
 
-function startBrush() {
+function startBrush(){
   brushing = true;
   startTime = Date.now();
-  arrows = [];
-  rewardMessage = "";
-}
-
-function drawBlock(x,y,size,color) {
-  ctx.fillStyle = color;
-  ctx.fillRect(x,y,size,size);
-  ctx.strokeStyle="rgba(0,0,0,0.2)";
-  ctx.strokeRect(x,y,size,size);
-}
-
-/* ---------- OVERWORLD PLAINS ---------- */
-function drawPlains() {
-  ctx.fillStyle="#87CEEB";
-  ctx.fillRect(0,0,canvas.width,canvas.height);
-
-  for(let i=0;i<canvas.width;i+=40){
-    drawBlock(i,canvas.height-200,40,"#3cb043");
-    drawBlock(i,canvas.height-160,40,"#7CFC00");
-  }
-
-  // Clouds
-  ctx.fillStyle="white";
-  ctx.fillRect(200,120,120,40);
-  ctx.fillRect(500,150,150,40);
-
-  // Oak Trees
-  for(let i=0;i<3;i++){
-    drawBlock(150+i*250,canvas.height-240,40,"#8B5A2B");
-    drawBlock(110+i*250,canvas.height-280,120,"#228B22");
-  }
-
-  // Sheep
-  ctx.fillStyle="white";
-  drawBlock(400,canvas.height-180,40,"white");
-}
-
-/* ---------- TAIGA ---------- */
-function drawTaiga() {
-  ctx.fillStyle="#6B8EAE";
-  ctx.fillRect(0,0,canvas.width,canvas.height);
-
-  for(let i=0;i<canvas.width;i+=40){
-    drawBlock(i,canvas.height-200,40,"#4a7023");
-    drawBlock(i,canvas.height-160,40,"#6b8e23");
-  }
-
-  // Pine Trees
-  for(let i=0;i<4;i++){
-    drawBlock(100+i*220,canvas.height-240,40,"#5c4033");
-    drawBlock(60+i*220,canvas.height-320,120,"#0b3d0b");
-  }
-
-  // Fox
-  ctx.fillStyle="orange";
-  drawBlock(500,canvas.height-180,40,"orange");
-
-  // Light clouds
-  ctx.fillStyle="#dddddd";
-  ctx.fillRect(300,130,100,30);
-}
-
-/* ---------- NETHER ---------- */
-function drawNether() {
-  ctx.fillStyle="#330000";
-  ctx.fillRect(0,0,canvas.width,canvas.height);
-
-  for(let i=0;i<canvas.width;i+=40){
-    drawBlock(i,canvas.height-200,40,"#8B0000");
-  }
-
-  // Lava glow
-  ctx.fillStyle="orange";
-  ctx.fillRect(0,canvas.height-100,canvas.width,100);
-
-  // Piglin
-  ctx.fillStyle="#ffb6c1";
-  drawBlock(canvas.width/2,canvas.height-180,50,"#ffb6c1");
-}
-
-/* ---------- END ---------- */
-function drawEnd() {
-  ctx.fillStyle="#111122";
-  ctx.fillRect(0,0,canvas.width,canvas.height);
-
-  for(let i=0;i<canvas.width;i+=40){
-    drawBlock(i,canvas.height-200,40,"#444");
-  }
-
-  // Dragon movement
-  dragonX += 2*dragonDir;
-  if(dragonX > canvas.width-200 || dragonX < 100) dragonDir *= -1;
-
-  ctx.fillStyle="purple";
-  ctx.fillRect(dragonX,150,150,40);
-  ctx.fillRect(dragonX+40,110,60,40);
-
-  // Arrows firing
-  if(Math.random()<0.2){
-    arrows.push({x:canvas.width/2,y:canvas.height-200});
-  }
-
-  arrows.forEach(a=>{
-    a.y -= 8;
-    ctx.fillStyle="white";
-    ctx.fillRect(a.x,a.y,4,20);
-  });
+  document.getElementById("reward").innerText = "";
 }
 
 /* ---------- MAIN LOOP ---------- */
-function animate() {
+
+function animate(){
   requestAnimationFrame(animate);
-  ctx.clearRect(0,0,canvas.width,canvas.height);
-  if(!brushing) return;
 
-  let elapsed = (Date.now()-startTime)/1000;
-  let timeLeft = Math.max(0,120-elapsed);
-  document.getElementById("timer").innerText = "Time: "+timeLeft.toFixed(0);
+  if(brushing){
+    const elapsed = (Date.now() - startTime)/1000;
+    const timeLeft = Math.max(0,120 - elapsed);
+    document.getElementById("timer").innerText = "Time: "+Math.ceil(timeLeft);
 
-  let biomeIndex = Math.floor(elapsed/30);
-  if(biomeIndex>3) biomeIndex=3;
-  document.getElementById("biome").innerText = "Biome: "+biomes[biomeIndex];
+    let biomeIndex = Math.floor(elapsed/30);
+    if(biomeIndex > 3) biomeIndex = 3;
 
-  if(biomeIndex===0) drawPlains();
-  if(biomeIndex===1) drawTaiga();
-  if(biomeIndex===2) drawNether();
-  if(biomeIndex===3) drawEnd();
+    if(biomeIndex !== currentBiome){
+      currentBiome = biomeIndex;
+      loadBiome(biomeIndex);
+      document.getElementById("biome").innerText = "Biome: "+["Plains","Taiga","Nether","The End"][biomeIndex];
+    }
 
-  if(elapsed>=120){
-    brushing=false;
-    registerBrush();
-    document.getElementById("reward").innerText=rewardMessage;
+    if(currentBiome === 3 && dragon){
+      dragon.position.x = Math.sin(Date.now()*0.002)*15;
+      dragon.position.z = Math.cos(Date.now()*0.002)*10;
+
+      if(Math.random() < 0.05){
+        fireArrow();
+      }
+    }
+
+    arrows.forEach(a => {
+      a.position.z -= 0.5;
+    });
+
+    if(elapsed >= 120){
+      brushing = false;
+      registerBrush();
+    }
   }
+
+  renderer.render(scene,camera);
 }
 
-updateDisplay();
+updateUI();
 animate();
 </script>
+
 </body>
 </html>
