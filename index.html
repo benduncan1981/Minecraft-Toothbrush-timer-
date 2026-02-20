@@ -4,12 +4,7 @@
 <meta charset="UTF-8">
 <title>Minecraft Brush Adventure</title>
 <style>
-body {
-  margin:0;
-  overflow:hidden;
-  font-family:Arial, sans-serif;
-  background:black;
-}
+body { margin:0; overflow:hidden; font-family:Arial; background:black; }
 #ui {
   position:absolute;
   top:10px;
@@ -19,10 +14,7 @@ body {
   font-size:18px;
   text-shadow:2px 2px 4px black;
 }
-button {
-  font-size:16px;
-  margin-top:5px;
-}
+button { font-size:16px; margin-top:5px; }
 #reward {
   position:absolute;
   bottom:20px;
@@ -35,6 +27,7 @@ button {
 </style>
 </head>
 <body>
+
 <div id="ui">
   <div id="timer"></div>
   <div id="biome"></div>
@@ -43,6 +36,7 @@ button {
   <button onclick="startBrush()">Start Brushing</button>
   <button onclick="manualBrush()">Add Manual Brush</button>
 </div>
+
 <div id="reward"></div>
 <canvas id="game"></canvas>
 
@@ -54,12 +48,17 @@ canvas.height = window.innerHeight;
 
 let brushing = false;
 let startTime = 0;
-let biomeIndex = 0;
-let dragonAngle = 0;
 let arrows = [];
+let dragonX = canvas.width/2;
+let dragonDir = 1;
 let rewardMessage = "";
 
-const biomes = ["Overworld","Nether","The End"];
+const biomes = [
+  "Overworld Plains",
+  "Overworld Taiga",
+  "Nether",
+  "The End"
+];
 
 function getToday() {
   return new Date().toISOString().split("T")[0];
@@ -117,9 +116,8 @@ function manualBrush() {
 function startBrush() {
   brushing = true;
   startTime = Date.now();
-  biomeIndex = 0;
-  rewardMessage = "";
   arrows = [];
+  rewardMessage = "";
 }
 
 function drawBlock(x,y,size,color) {
@@ -129,84 +127,124 @@ function drawBlock(x,y,size,color) {
   ctx.strokeRect(x,y,size,size);
 }
 
-function drawOverworld() {
+/* ---------- OVERWORLD PLAINS ---------- */
+function drawPlains() {
+  ctx.fillStyle="#87CEEB";
+  ctx.fillRect(0,0,canvas.width,canvas.height);
+
   for(let i=0;i<canvas.width;i+=40){
     drawBlock(i,canvas.height-200,40,"#3cb043");
-    drawBlock(i,canvas.height-160,40,"#7cfc00");
+    drawBlock(i,canvas.height-160,40,"#7CFC00");
   }
 
-  ctx.fillStyle="yellow";
-  ctx.beginPath();
-  ctx.arc(canvas.width-100,100,50,0,Math.PI*2);
-  ctx.fill();
-
-  for(let i=0;i<5;i++){
-    drawBlock(100+i*120,canvas.height-240,40,"#8b5a2b");
-    drawBlock(60+i*120,canvas.height-280,120,"#228b22");
-  }
-
+  // Clouds
   ctx.fillStyle="white";
-  ctx.fillRect(200,100,120,40);
-  ctx.fillRect(500,140,150,40);
+  ctx.fillRect(200,120,120,40);
+  ctx.fillRect(500,150,150,40);
 
-  ctx.fillStyle="pink";
-  drawBlock(300,canvas.height-180,30,"pink");
+  // Oak Trees
+  for(let i=0;i<3;i++){
+    drawBlock(150+i*250,canvas.height-240,40,"#8B5A2B");
+    drawBlock(110+i*250,canvas.height-280,120,"#228B22");
+  }
+
+  // Sheep
+  ctx.fillStyle="white";
+  drawBlock(400,canvas.height-180,40,"white");
 }
 
+/* ---------- TAIGA ---------- */
+function drawTaiga() {
+  ctx.fillStyle="#6B8EAE";
+  ctx.fillRect(0,0,canvas.width,canvas.height);
+
+  for(let i=0;i<canvas.width;i+=40){
+    drawBlock(i,canvas.height-200,40,"#4a7023");
+    drawBlock(i,canvas.height-160,40,"#6b8e23");
+  }
+
+  // Pine Trees
+  for(let i=0;i<4;i++){
+    drawBlock(100+i*220,canvas.height-240,40,"#5c4033");
+    drawBlock(60+i*220,canvas.height-320,120,"#0b3d0b");
+  }
+
+  // Fox
+  ctx.fillStyle="orange";
+  drawBlock(500,canvas.height-180,40,"orange");
+
+  // Light clouds
+  ctx.fillStyle="#dddddd";
+  ctx.fillRect(300,130,100,30);
+}
+
+/* ---------- NETHER ---------- */
 function drawNether() {
   ctx.fillStyle="#330000";
   ctx.fillRect(0,0,canvas.width,canvas.height);
+
   for(let i=0;i<canvas.width;i+=40){
-    drawBlock(i,canvas.height-200,40,"#8b0000");
+    drawBlock(i,canvas.height-200,40,"#8B0000");
   }
+
+  // Lava glow
+  ctx.fillStyle="orange";
+  ctx.fillRect(0,canvas.height-100,canvas.width,100);
+
+  // Piglin
+  ctx.fillStyle="#ffb6c1";
+  drawBlock(canvas.width/2,canvas.height-180,50,"#ffb6c1");
 }
 
+/* ---------- END ---------- */
 function drawEnd() {
   ctx.fillStyle="#111122";
   ctx.fillRect(0,0,canvas.width,canvas.height);
+
   for(let i=0;i<canvas.width;i+=40){
     drawBlock(i,canvas.height-200,40,"#444");
   }
 
-  dragonAngle+=0.03;
-  let dx = canvas.width/2 + Math.cos(dragonAngle)*200;
-  let dy = 200 + Math.sin(dragonAngle)*50;
+  // Dragon movement
+  dragonX += 2*dragonDir;
+  if(dragonX > canvas.width-200 || dragonX < 100) dragonDir *= -1;
 
   ctx.fillStyle="purple";
-  ctx.fillRect(dx,dy,120,40);
-  ctx.fillRect(dx+40,dy-30,40,30);
+  ctx.fillRect(dragonX,150,150,40);
+  ctx.fillRect(dragonX+40,110,60,40);
 
-  if (Math.random()<0.1) {
+  // Arrows firing
+  if(Math.random()<0.2){
     arrows.push({x:canvas.width/2,y:canvas.height-200});
   }
 
   arrows.forEach(a=>{
-    a.y-=6;
+    a.y -= 8;
     ctx.fillStyle="white";
     ctx.fillRect(a.x,a.y,4,20);
   });
 }
 
+/* ---------- MAIN LOOP ---------- */
 function animate() {
   requestAnimationFrame(animate);
-
   ctx.clearRect(0,0,canvas.width,canvas.height);
-
-  if (!brushing) return;
+  if(!brushing) return;
 
   let elapsed = (Date.now()-startTime)/1000;
-  let timeLeft = Math.max(0,90-elapsed);
+  let timeLeft = Math.max(0,120-elapsed);
   document.getElementById("timer").innerText = "Time: "+timeLeft.toFixed(0);
 
-  biomeIndex = Math.floor(elapsed/30);
-  if (biomeIndex>2) biomeIndex=2;
+  let biomeIndex = Math.floor(elapsed/30);
+  if(biomeIndex>3) biomeIndex=3;
   document.getElementById("biome").innerText = "Biome: "+biomes[biomeIndex];
 
-  if (biomeIndex===0) drawOverworld();
-  if (biomeIndex===1) drawNether();
-  if (biomeIndex===2) drawEnd();
+  if(biomeIndex===0) drawPlains();
+  if(biomeIndex===1) drawTaiga();
+  if(biomeIndex===2) drawNether();
+  if(biomeIndex===3) drawEnd();
 
-  if (elapsed>=90) {
+  if(elapsed>=120){
     brushing=false;
     registerBrush();
     document.getElementById("reward").innerText=rewardMessage;
