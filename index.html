@@ -1,10 +1,19 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Minecraft Brush Quest</title>
+<title>Oscar's Tooth Quest</title>
 <style>
-body { margin:0; overflow:hidden; background:black; font-family:Arial; }
+body {
+  margin:0;
+  overflow:hidden;
+  font-family:'Press Start 2P', monospace;
+  background:black;
+}
+canvas {
+  image-rendering: pixelated;
+  display:block;
+}
 #ui {
   position:absolute;
   top:10px;
@@ -12,8 +21,13 @@ body { margin:0; overflow:hidden; background:black; font-family:Arial; }
   color:white;
   z-index:10;
   font-size:18px;
+  text-shadow:2px 2px 4px black;
 }
-button { margin-top:4px; font-size:16px; }
+button {
+  display:block;
+  margin-top:5px;
+  font-size:14px;
+}
 #reward {
   position:absolute;
   bottom:20px;
@@ -21,255 +35,187 @@ button { margin-top:4px; font-size:16px; }
   text-align:center;
   font-size:28px;
   color:gold;
+  text-shadow:3px 3px 6px black;
 }
 </style>
 </head>
 <body>
 
+<canvas id="game"></canvas>
+
 <div id="ui">
-  <div id="timer"></div>
-  <div id="biome"></div>
+  <div id="timer">02:00</div>
+  <div id="biome">Tap Start to Begin</div>
   <div id="streak"></div>
-  <div id="total"></div>
-  <button onclick="startBrush()">Start Brushing</button>
+  <div id="totalDays"></div>
+  <button onclick="startBrush()">START BRUSHING</button>
   <button onclick="manualBrush()">Add Manual Brush</button>
 </div>
 <div id="reward"></div>
 
-<script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
-
 <script>
-/* ---------- BASIC SETUP ---------- */
+const canvas = document.getElementById('game');
+const ctx = canvas.getContext('2d');
+canvas.width = window.innerWidth;
+canvas.height = window.innerHeight;
 
-const scene = new THREE.Scene();
-const camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000);
-const renderer = new THREE.WebGLRenderer({antialias:true});
-renderer.setSize(window.innerWidth, window.innerHeight);
-renderer.shadowMap.enabled = true;
-document.body.appendChild(renderer.domElement);
+const TILE = 32;
+let brushing=false;
+let startTime=0;
+let arrows=[];
+let dragonX=0, dragonDir=2;
+let rewardMessage="";
+let zones = [
+  {x:100, y:canvas.height-250, w:100, h:50, brushed:false},
+  {x:220, y:canvas.height-250, w:100, h:50, brushed:false},
+  {x:100, y:canvas.height-180, w:100, h:50, brushed:false},
+  {x:220, y:canvas.height-180, w:100, h:50, brushed:false}
+];
 
-camera.position.set(0,10,25);
-
-const light = new THREE.DirectionalLight(0xffffff,1);
-light.position.set(10,20,10);
-light.castShadow = true;
-scene.add(light);
-scene.add(new THREE.AmbientLight(0x888888));
-
-/* ---------- WORLD OBJECTS ---------- */
-
-let worldGroup = new THREE.Group();
-scene.add(worldGroup);
-
-function clearWorld(){
-  while(worldGroup.children.length > 0){
-    worldGroup.remove(worldGroup.children[0]);
+/* ---------- STORAGE ---------- */
+function getToday(){ return new Date().toISOString().split('T')[0]; }
+function loadData(){
+  return {
+    streak: parseInt(localStorage.getItem('streak')||0),
+    total: parseInt(localStorage.getItem('totalDays')||0),
+    last: localStorage.getItem('lastDate')||""
+  };
+}
+function saveData(d){
+  localStorage.setItem('streak',d.streak);
+  localStorage.setItem('totalDays',d.total);
+  localStorage.setItem('lastDate',d.last);
+}
+function updateUI(){
+  const d=loadData();
+  document.getElementById('streak').innerText="Streak: "+d.streak;
+  document.getElementById('totalDays').innerText="Total days brushed: "+d.total;
+}
+function rewardCheck(streak){ if(streak%7===0) rewardMessage="Weekly Reward Unlocked!"; }
+function registerBrush(){
+  let d=loadData();
+  const today=getToday();
+  if(d.last!==today){
+    let y=new Date(); y.setDate(y.getDate()-1);
+    const yd=y.toISOString().split('T')[0];
+    if(d.last===yd) d.streak++; else d.streak=1;
+    d.total++; d.last=today;
+    rewardCheck(d.streak);
+    saveData(d); updateUI();
   }
 }
+function manualBrush(){ registerBrush(); }
 
-function createGround(color){
-  const geo = new THREE.BoxGeometry(100,2,100);
-  const mat = new THREE.MeshLambertMaterial({color});
-  const ground = new THREE.Mesh(geo,mat);
-  ground.position.y = -1;
-  ground.receiveShadow = true;
-  worldGroup.add(ground);
+/* ---------- START ---------- */
+function startBrush(){
+  brushing=true;
+  startTime=Date.now();
+  arrows=[]; rewardMessage="";
+  zones.forEach(z=>z.brushed=false);
+  document.getElementById('biome').innerText="Overworld Plains";
 }
 
-function createTree(x,z){
-  const trunk = new THREE.Mesh(
-    new THREE.BoxGeometry(1,4,1),
-    new THREE.MeshLambertMaterial({color:0x8b5a2b})
-  );
-  trunk.position.set(x,2,z);
-  trunk.castShadow = true;
-
-  const leaves = new THREE.Mesh(
-    new THREE.BoxGeometry(4,4,4),
-    new THREE.MeshLambertMaterial({color:0x228b22})
-  );
-  leaves.position.set(x,5,z);
-  leaves.castShadow = true;
-
-  worldGroup.add(trunk);
-  worldGroup.add(leaves);
-}
-
-function createAnimal(x,z,color){
-  const body = new THREE.Mesh(
-    new THREE.BoxGeometry(2,2,3),
-    new THREE.MeshLambertMaterial({color})
-  );
-  body.position.set(x,1,z);
-  body.castShadow = true;
-  worldGroup.add(body);
-}
-
-let dragon;
-let arrows = [];
-
-function createDragon(){
-  dragon = new THREE.Mesh(
-    new THREE.BoxGeometry(8,2,3),
-    new THREE.MeshLambertMaterial({color:0x551a8b})
-  );
-  dragon.position.set(0,15,0);
-  dragon.castShadow = true;
-  worldGroup.add(dragon);
-}
-
-function fireArrow(){
-  const arrow = new THREE.Mesh(
-    new THREE.BoxGeometry(0.3,3,0.3),
-    new THREE.MeshBasicMaterial({color:0xffffff})
-  );
-  arrow.position.set(0,1,20);
-  arrows.push(arrow);
-  worldGroup.add(arrow);
+/* ---------- BLOCK DRAWING ---------- */
+function block(x,y,w,h,color){
+  ctx.fillStyle=color;
+  ctx.fillRect(x,y,w,h);
+  ctx.strokeStyle='rgba(0,0,0,0.2)';
+  ctx.strokeRect(x,y,w,h);
 }
 
 /* ---------- BIOMES ---------- */
-
-function loadBiome(index){
-  clearWorld();
-  arrows = [];
-
-  if(index === 0){
-    scene.background = new THREE.Color(0x87ceeb);
-    createGround(0x3cb043);
-    createTree(-10,-5);
-    createTree(5,-8);
-    createAnimal(0,-5,0xffffff);
+function drawPlains(){
+  ctx.fillStyle='#87CEEB';
+  ctx.fillRect(0,0,canvas.width,canvas.height);
+  for(let x=0;x<canvas.width;x+=TILE){
+    block(x,canvas.height-200,TILE,200,'#3CB043');
   }
-
-  if(index === 1){
-    scene.background = new THREE.Color(0x6b8eae);
-    createGround(0x4a7023);
-    createTree(-8,-4);
-    createTree(8,-6);
-    createAnimal(4,-4,0xff6600);
+  drawCloud(200,100); drawCloud(500,150);
+  drawTree(150,canvas.height-240); drawTree(450,canvas.height-240);
+  drawSheep(350,canvas.height-180);
+}
+function drawFlowerForest(){
+  ctx.fillStyle='#A7D8FF';
+  ctx.fillRect(0,0,canvas.width,canvas.height);
+  for(let x=0;x<canvas.width;x+=TILE){
+    block(x,canvas.height-200,TILE,200,'#4CAF50');
   }
-
-  if(index === 2){
-    scene.background = new THREE.Color(0x330000);
-    createGround(0x8b0000);
-    createAnimal(0,-5,0xffb6c1);
-  }
-
-  if(index === 3){
-    scene.background = new THREE.Color(0x111122);
-    createGround(0x444444);
-    createDragon();
+  drawCloud(300,120); drawCloud(600,160);
+  drawTree(200,canvas.height-240); drawTree(500,canvas.height-240);
+  drawSheep(400,canvas.height-180);
+  for(let i=0;i<10;i++){
+    ctx.fillStyle='pink'; ctx.fillRect(i*100,canvas.height-210,8,8);
   }
 }
-
-/* ---------- TIMER + STREAK ---------- */
-
-let brushing = false;
-let startTime = 0;
-let currentBiome = -1;
-
-function getToday(){
-  return new Date().toISOString().split("T")[0];
+function drawNether(){
+  ctx.fillStyle='#330000'; ctx.fillRect(0,0,canvas.width,canvas.height);
+  for(let x=0;x<canvas.width;x+=TILE){
+    block(x,canvas.height-200,TILE,200,'#8B0000');
+  }
+  ctx.fillStyle='orange'; ctx.fillRect(0,canvas.height-100,canvas.width,100);
+  drawPiglin(canvas.width/2,canvas.height-180);
+}
+function drawEnd(){
+  ctx.fillStyle='#111122'; ctx.fillRect(0,0,canvas.width,canvas.height);
+  for(let x=0;x<canvas.width;x+=TILE){
+    block(x,canvas.height-200,TILE,200,'#444');
+  }
+  drawDragon();
+  if(Math.random()<0.2){ arrows.push({x:canvas.width/2,y:canvas.height-200}); }
+  arrows.forEach(a=>{ a.y-=8; ctx.fillStyle='white'; ctx.fillRect(a.x,a.y,4,20); });
 }
 
-function loadData(){
-  return {
-    streak: parseInt(localStorage.getItem("streak")||0),
-    total: parseInt(localStorage.getItem("totalDays")||0),
-    last: localStorage.getItem("lastDate")||""
-  };
-}
+/* ---------- OBJECTS ---------- */
+function drawCloud(x,y){ ctx.fillStyle='white'; ctx.fillRect(x,y,96,32); ctx.fillRect(x+16,y-16,64,32);}
+function drawTree(x,y){ block(x,y,32,64,'#8B5A2B'); ctx.fillStyle='#228B22'; ctx.fillRect(x-16,y-32,64,64);}
+function drawSheep(x,y){ ctx.fillStyle='white'; ctx.fillRect(x,y,32,16);}
+function drawPiglin(x,y){ ctx.fillStyle='#ffb6c1'; ctx.fillRect(x,y,32,24);}
+function drawDragon(){ dragonX+=dragonDir; if(dragonX<100||dragonX>canvas.width-200) dragonDir*=-1; ctx.fillStyle='#551A8B'; ctx.fillRect(dragonX,150,160,32); ctx.fillRect(dragonX+40,120,64,32);}
 
-function saveData(d){
-  localStorage.setItem("streak",d.streak);
-  localStorage.setItem("totalDays",d.total);
-  localStorage.setItem("lastDate",d.last);
-}
-
-function updateUI(){
-  const d = loadData();
-  document.getElementById("streak").innerText = "Streak: "+d.streak;
-  document.getElementById("total").innerText = "Total days: "+d.total;
-}
-
-function registerBrush(){
-  let d = loadData();
-  const today = getToday();
-  if(d.last !== today){
-    let y = new Date();
-    y.setDate(y.getDate()-1);
-    let yd = y.toISOString().split("T")[0];
-
-    if(d.last === yd) d.streak++;
-    else d.streak = 1;
-
-    d.total++;
-    d.last = today;
-    saveData(d);
-
-    if(d.streak % 7 === 0){
-      document.getElementById("reward").innerText = "Weekly Reward Unlocked!";
+/* ---------- ZONES INTERACTION ---------- */
+canvas.addEventListener('pointerdown', e=>{
+  if(!brushing) return;
+  const rect=canvas.getBoundingClientRect();
+  const mx=e.clientX-rect.left;
+  const my=e.clientY-rect.top;
+  zones.forEach(z=>{
+    if(!z.brushed && mx>z.x && mx<z.x+z.w && my>z.y && my<z.y+z.h){
+      z.brushed=true;
+      for(let i=0;i<5;i++){
+        ctx.fillStyle='pink'; ctx.fillRect(z.x+Math.random()*z.w,z.y+Math.random()*z.h,4,4);
+      }
+      if('vibrate' in navigator) navigator.vibrate(50);
     }
-
-    updateUI();
-  }
-}
-
-function manualBrush(){
-  registerBrush();
-}
-
-function startBrush(){
-  brushing = true;
-  startTime = Date.now();
-  document.getElementById("reward").innerText = "";
-}
+  });
+});
 
 /* ---------- MAIN LOOP ---------- */
-
 function animate(){
   requestAnimationFrame(animate);
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  if(!brushing) return;
 
-  if(brushing){
-    const elapsed = (Date.now() - startTime)/1000;
-    const timeLeft = Math.max(0,120 - elapsed);
-    document.getElementById("timer").innerText = "Time: "+Math.ceil(timeLeft);
+  const elapsed=(Date.now()-startTime)/1000;
+  const timeLeft=Math.max(0,120-elapsed);
+  document.getElementById('timer').innerText='Time: '+Math.ceil(timeLeft);
 
-    let biomeIndex = Math.floor(elapsed/30);
-    if(biomeIndex > 3) biomeIndex = 3;
+  let biomeIndex=Math.floor(elapsed/30); if(biomeIndex>3) biomeIndex=3;
+  document.getElementById('biome').innerText='Biome: '+biomes[biomeIndex];
 
-    if(biomeIndex !== currentBiome){
-      currentBiome = biomeIndex;
-      loadBiome(biomeIndex);
-      document.getElementById("biome").innerText = "Biome: "+["Plains","Taiga","Nether","The End"][biomeIndex];
-    }
+  if(biomeIndex===0) drawPlains();
+  if(biomeIndex===1) drawFlowerForest();
+  if(biomeIndex===2) drawNether();
+  if(biomeIndex===3) drawEnd();
 
-    if(currentBiome === 3 && dragon){
-      dragon.position.x = Math.sin(Date.now()*0.002)*15;
-      dragon.position.z = Math.cos(Date.now()*0.002)*10;
-
-      if(Math.random() < 0.05){
-        fireArrow();
-      }
-    }
-
-    arrows.forEach(a => {
-      a.position.z -= 0.5;
-    });
-
-    if(elapsed >= 120){
-      brushing = false;
-      registerBrush();
-    }
+  if(elapsed>=120){
+    brushing=false;
+    registerBrush();
+    document.getElementById('reward').innerText=rewardMessage;
   }
-
-  renderer.render(scene,camera);
 }
 
 updateUI();
 animate();
 </script>
-
 </body>
 </html>
