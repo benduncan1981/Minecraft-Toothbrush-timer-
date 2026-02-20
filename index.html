@@ -1,429 +1,220 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>Oscar's Pixel Brushing Quest</title>
-<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
-
+<title>Minecraft Brush Adventure</title>
 <style>
-:root{ --xp:#ff69b4; }
-
-*{ box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
-
-body{
+body {
   margin:0;
-  font-family:'Press Start 2P', monospace;
-  color:white;
-  height:100vh;
   overflow:hidden;
-  display:flex;
-  justify-content:center;
-  align-items:center;
-  background:#6cc04a;
-}
-
-/* BIOMES */
-body.plains{ background:#6cc04a; }
-body.forest{ background:#3e8f2f; }
-body.nether{ background:#2b0000; }
-body.end{ background:#120018; }
-
-/* SKY */
-.sky{
-  position:absolute;
-  top:0;
-  width:100%;
-  height:50%;
-  image-rendering:pixelated;
-}
-body.plains .sky{ background:#78c8ff; }
-body.forest .sky{ background:#6ab4e0; }
-body.nether .sky{
-  background:radial-gradient(circle at 50% 40%, #aa0000 0%, #5b0000 60%);
-}
-body.end .sky{ background:#0d0015; }
-
-/* BLOCK GROUND */
-body::before{
-  content:"";
-  position:absolute;
-  bottom:0;
-  width:100%;
-  height:140px;
-  background:
-    linear-gradient(#4aa52e 50px,#7a4b1f 50px,#7a4b1f 140px);
-}
-
-/* NETHER LAVA */
-body.nether::before{
-  background:
-  repeating-linear-gradient(
-    0deg,
-    #ff3300 0px,
-    #ff3300 12px,
-    #990000 12px,
-    #990000 24px
-  );
-}
-
-/* SUN */
-.sun{
-  position:absolute;
-  top:40px;
-  right:60px;
-  width:64px;
-  height:64px;
-  background:
-    linear-gradient(45deg,#fff200 25%,#ffd000 25%,#ffd000 50%,#ffb700 50%,#ffb700 75%,#ff9c00 75%);
-  box-shadow:0 0 0 8px #ffcc00;
-}
-
-/* CLOUD */
-.cloud{
-  position:absolute;
-  width:140px;
-  height:48px;
-  background:linear-gradient(#fff 50%,#e6f4ff 50%);
-  animation:cloudMove 90s linear infinite;
-}
-@keyframes cloudMove{
-  from{ left:-200px; }
-  to{ left:110%; }
-}
-
-/* TREES */
-.tree{
-  position:absolute;
-  bottom:140px;
-  width:90px;
-  height:140px;
-}
-.tree .trunk{
-  position:absolute;
-  bottom:0;
-  left:38px;
-  width:14px;
-  height:60px;
-  background:#6b3f1a;
-}
-.tree .leaves{
-  position:absolute;
-  bottom:60px;
-  left:0;
-  width:90px;
-  height:80px;
-  background:
-    repeating-linear-gradient(
-      0deg,
-      #1e7a1e 0px,
-      #1e7a1e 8px,
-      #145c14 8px,
-      #145c14 16px
-    );
-}
-
-/* ANIMALS */
-.pig,.cow{
-  position:absolute;
-  bottom:150px;
-  width:50px;
-  height:34px;
-  animation:animalMove 35s linear infinite;
-}
-.pig{ background:#ffb6c1; }
-.cow{ background:#ffffff; }
-@keyframes animalMove{
-  from{ left:-120px; }
-  to{ left:110%; }
-}
-
-/* END PILLARS */
-.pillar{
-  position:absolute;
-  bottom:140px;
-  width:60px;
-  height:220px;
-  background:#111;
-}
-.crystal{
-  position:absolute;
-  top:-25px;
-  left:10px;
-  width:40px;
-  height:40px;
-  background:#8a2be2;
-  box-shadow:0 0 20px #8a2be2;
-}
-
-/* ENDER DRAGON */
-.dragon{
-  position:absolute;
-  top:120px;
-  width:200px;
-  height:70px;
-  background:#2b0033;
-  animation:dragonFly 14s linear infinite;
-}
-.dragon::before,
-.dragon::after{
-  content:"";
-  position:absolute;
-  top:20px;
-  width:70px;
-  height:20px;
-  background:#2b0033;
-}
-.dragon::before{ left:-60px; }
-.dragon::after{ right:-60px; }
-
-@keyframes dragonFly{
-  from{ left:-300px; }
-  to{ left:110%; }
-}
-
-/* ARROWS */
-.arrow{
-  position:absolute;
-  bottom:140px;
-  width:4px;
-  height:70px;
-  background:#ccc;
-  animation:arrowShoot 2s linear forwards;
-}
-@keyframes arrowShoot{
-  to{ transform:translateY(-650px); opacity:0; }
-}
-
-/* UI */
-.container{
-  position:relative;
-  text-align:center;
-  width:90%;
-  max-width:480px;
-  background:#888;
-  border:8px solid black;
-  padding:20px;
-  box-shadow:0 0 0 8px #333;
-  z-index:10;
-}
-
-h1{ font-size:14px; margin-bottom:15px; text-shadow:4px 4px black; }
-.timer{ font-size:36px; margin:20px 0; text-shadow:5px 5px black; }
-.zone{ font-size:10px; margin-bottom:10px; color:#ff8cf0; }
-
-button{
-  font-family:'Press Start 2P', monospace;
-  background:#7a4b1f;
-  border:6px solid black;
-  color:white;
-  padding:14px;
-  width:100%;
-  font-size:10px;
-  margin-top:15px;
-  box-shadow:4px 4px #000;
-}
-button:active{ transform:translate(4px,4px); box-shadow:none; }
-
-.xp-bar{
-  width:100%;
-  height:18px;
-  background:#222;
-  border:4px solid black;
-  margin-top:15px;
-}
-.xp-fill{
-  height:100%;
-  width:0%;
-  background:var(--xp);
-  transition:width 0.5s linear;
-}
-
-.achievement{
-  position:absolute;
-  top:20%;
-  left:50%;
-  transform:translateX(-50%);
+  font-family:Arial, sans-serif;
   background:black;
-  border:6px solid gold;
-  padding:20px;
-  display:none;
+}
+#ui {
+  position:absolute;
+  top:10px;
+  left:10px;
+  color:white;
+  z-index:10;
+  font-size:18px;
+  text-shadow:2px 2px 4px black;
+}
+button {
+  font-size:16px;
+  margin-top:5px;
+}
+#reward {
+  position:absolute;
+  bottom:20px;
+  width:100%;
   text-align:center;
-  z-index:20;
+  font-size:28px;
+  color:gold;
+  text-shadow:3px 3px 6px black;
 }
 </style>
 </head>
-
-<body class="plains">
-
-<div class="sky"></div>
-<div id="world"></div>
-
-<div class="container">
-  <h1>Oscar's Tooth Quest</h1>
-  <div class="timer" id="timer">02:00</div>
-  <div class="zone" id="zone">Tap Start To Begin</div>
-  <button id="startBtn">START BRUSHING</button>
-  <button id="pauseBtn" style="display:none;">PAUSE</button>
-  <button id="resetBtn" style="display:none;">RESTART QUEST</button>
-  <div class="xp-bar"><div class="xp-fill" id="xp"></div></div>
+<body>
+<div id="ui">
+  <div id="timer"></div>
+  <div id="biome"></div>
+  <div id="streak"></div>
+  <div id="totalDays"></div>
+  <button onclick="startBrush()">Start Brushing</button>
+  <button onclick="manualBrush()">Add Manual Brush</button>
 </div>
-
-<div class="achievement" id="achievement">
-  TREASURE UNLOCKED<br><br>
-  SUPER CLEAN TEETH<br><br>
-  Oscar Level Up!
-</div>
+<div id="reward"></div>
+<canvas id="game"></canvas>
 
 <script>
-let timeLeft=120;
-let interval;
-let isPaused=false;
+const canvas = document.getElementById("game");
+const ctx = canvas.getContext("2d");
+canvas.width = window.innerWidth;
+canvas.height = window.innerHeight;
 
-const world=document.getElementById("world");
-const timer=document.getElementById("timer");
-const zone=document.getElementById("zone");
-const xp=document.getElementById("xp");
-const achievement=document.getElementById("achievement");
-const startBtn=document.getElementById("startBtn");
-const pauseBtn=document.getElementById("pauseBtn");
-const resetBtn=document.getElementById("resetBtn");
+let brushing = false;
+let startTime = 0;
+let biomeIndex = 0;
+let dragonAngle = 0;
+let arrows = [];
+let rewardMessage = "";
 
-const zones=["Top Left Zone","Top Right Zone","Bottom Left Zone","Bottom Right Zone"];
-const biomes=["plains","forest","nether","end"];
+const biomes = ["Overworld","Nether","The End"];
 
-const audioCtx=new (window.AudioContext||window.webkitAudioContext)();
-function beep(){
-  const o=audioCtx.createOscillator();
-  const g=audioCtx.createGain();
-  o.connect(g); g.connect(audioCtx.destination);
-  o.type="square"; o.frequency.value=800;
-  g.gain.setValueAtTime(0.1,audioCtx.currentTime);
-  o.start(); o.stop(audioCtx.currentTime+0.08);
+function getToday() {
+  return new Date().toISOString().split("T")[0];
 }
 
-function buildBiome(name){
-  world.innerHTML="";
+function loadData() {
+  return {
+    streak: parseInt(localStorage.getItem("streak")||0),
+    total: parseInt(localStorage.getItem("totalDays")||0),
+    last: localStorage.getItem("lastDate")||""
+  };
+}
 
-  if(name==="plains"||name==="forest"){
-    const sun=document.createElement("div");
-    sun.className="sun";
-    world.appendChild(sun);
+function saveData(data) {
+  localStorage.setItem("streak",data.streak);
+  localStorage.setItem("totalDays",data.total);
+  localStorage.setItem("lastDate",data.last);
+}
 
-    const cloud=document.createElement("div");
-    cloud.className="cloud";
-    cloud.style.top="70px";
-    world.appendChild(cloud);
+function updateDisplay() {
+  let data = loadData();
+  document.getElementById("streak").innerText = "Streak: "+data.streak+" days";
+  document.getElementById("totalDays").innerText = "Total days brushed: "+data.total;
+}
 
-    for(let i=0;i<2;i++){
-      const tree=document.createElement("div");
-      tree.className="tree";
-      tree.style.left=(15+i*55)+"%";
-      tree.innerHTML='<div class="trunk"></div><div class="leaves"></div>';
-      world.appendChild(tree);
-    }
-
-    const pig=document.createElement("div");
-    pig.className="pig";
-    world.appendChild(pig);
-
-    const cow=document.createElement("div");
-    cow.className="cow";
-    cow.style.animationDuration="45s";
-    world.appendChild(cow);
-  }
-
-  if(name==="end"){
-    for(let i=0;i<3;i++){
-      const p=document.createElement("div");
-      p.className="pillar";
-      p.style.left=(10+i*30)+"%";
-      const crystal=document.createElement("div");
-      crystal.className="crystal";
-      p.appendChild(crystal);
-      world.appendChild(p);
-    }
-
-    const dragon=document.createElement("div");
-    dragon.className="dragon";
-    world.appendChild(dragon);
+function rewardCheck(streak) {
+  if (streak % 7 === 0) {
+    rewardMessage = "Weekly Reward Unlocked!";
   }
 }
 
-function shootArrow(){
-  const a=document.createElement("div");
-  a.className="arrow";
-  a.style.left=Math.random()*window.innerWidth+"px";
-  document.body.appendChild(a);
-  setTimeout(()=>a.remove(),2000);
+function registerBrush() {
+  let data = loadData();
+  let today = getToday();
+  if (data.last !== today) {
+    let yesterday = new Date();
+    yesterday.setDate(yesterday.getDate()-1);
+    let yDate = yesterday.toISOString().split("T")[0];
+
+    if (data.last === yDate) data.streak++;
+    else data.streak = 1;
+
+    data.total++;
+    data.last = today;
+    rewardCheck(data.streak);
+    saveData(data);
+    updateDisplay();
+  }
 }
 
-function update(){
-  let m=Math.floor(timeLeft/60);
-  let s=timeLeft%60;
-  timer.textContent=(m<10?"0":"")+m+":"+(s<10?"0":"")+s;
-  xp.style.width=((120-timeLeft)/120)*100+"%";
-
-  let index=Math.floor((120-timeLeft)/30);
-  if(index<4) zone.textContent=zones[index];
-
-  document.body.className=biomes[index]||"end";
-  buildBiome(biomes[index]||"end");
-
-  if(document.body.className==="end") shootArrow();
-
-  if(timeLeft===10) document.body.classList.add("warning");
+function manualBrush() {
+  registerBrush();
 }
 
-function finish(){
-  clearInterval(interval);
-  achievement.style.display="block";
-  zone.textContent="Quest Complete!";
-  startBtn.style.display="none";
-  pauseBtn.style.display="none";
-  resetBtn.style.display="block";
+function startBrush() {
+  brushing = true;
+  startTime = Date.now();
+  biomeIndex = 0;
+  rewardMessage = "";
+  arrows = [];
 }
 
-function tick(){
-  if(isPaused) return;
-  timeLeft--;
-  beep();
-  update();
-  if(timeLeft<=0) finish();
+function drawBlock(x,y,size,color) {
+  ctx.fillStyle = color;
+  ctx.fillRect(x,y,size,size);
+  ctx.strokeStyle="rgba(0,0,0,0.2)";
+  ctx.strokeRect(x,y,size,size);
 }
 
-function start(){
-  startBtn.style.display="none";
-  pauseBtn.style.display="block";
-  interval=setInterval(tick,1000);
+function drawOverworld() {
+  for(let i=0;i<canvas.width;i+=40){
+    drawBlock(i,canvas.height-200,40,"#3cb043");
+    drawBlock(i,canvas.height-160,40,"#7cfc00");
+  }
+
+  ctx.fillStyle="yellow";
+  ctx.beginPath();
+  ctx.arc(canvas.width-100,100,50,0,Math.PI*2);
+  ctx.fill();
+
+  for(let i=0;i<5;i++){
+    drawBlock(100+i*120,canvas.height-240,40,"#8b5a2b");
+    drawBlock(60+i*120,canvas.height-280,120,"#228b22");
+  }
+
+  ctx.fillStyle="white";
+  ctx.fillRect(200,100,120,40);
+  ctx.fillRect(500,140,150,40);
+
+  ctx.fillStyle="pink";
+  drawBlock(300,canvas.height-180,30,"pink");
 }
 
-function pause(){
-  isPaused=!isPaused;
-  pauseBtn.textContent=isPaused?"RESUME":"PAUSE";
+function drawNether() {
+  ctx.fillStyle="#330000";
+  ctx.fillRect(0,0,canvas.width,canvas.height);
+  for(let i=0;i<canvas.width;i+=40){
+    drawBlock(i,canvas.height-200,40,"#8b0000");
+  }
 }
 
-function reset(){
-  clearInterval(interval);
-  timeLeft=120;
-  xp.style.width="0%";
-  achievement.style.display="none";
-  zone.textContent="Tap Start To Begin";
-  startBtn.style.display="block";
-  pauseBtn.style.display="none";
-  resetBtn.style.display="none";
-  timer.textContent="02:00";
-  isPaused=false;
-  document.body.className="plains";
-  buildBiome("plains");
+function drawEnd() {
+  ctx.fillStyle="#111122";
+  ctx.fillRect(0,0,canvas.width,canvas.height);
+  for(let i=0;i<canvas.width;i+=40){
+    drawBlock(i,canvas.height-200,40,"#444");
+  }
+
+  dragonAngle+=0.03;
+  let dx = canvas.width/2 + Math.cos(dragonAngle)*200;
+  let dy = 200 + Math.sin(dragonAngle)*50;
+
+  ctx.fillStyle="purple";
+  ctx.fillRect(dx,dy,120,40);
+  ctx.fillRect(dx+40,dy-30,40,30);
+
+  if (Math.random()<0.1) {
+    arrows.push({x:canvas.width/2,y:canvas.height-200});
+  }
+
+  arrows.forEach(a=>{
+    a.y-=6;
+    ctx.fillStyle="white";
+    ctx.fillRect(a.x,a.y,4,20);
+  });
 }
 
-startBtn.addEventListener("click",start);
-pauseBtn.addEventListener("click",pause);
-resetBtn.addEventListener("click",reset);
+function animate() {
+  requestAnimationFrame(animate);
 
-buildBiome("plains");
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+
+  if (!brushing) return;
+
+  let elapsed = (Date.now()-startTime)/1000;
+  let timeLeft = Math.max(0,90-elapsed);
+  document.getElementById("timer").innerText = "Time: "+timeLeft.toFixed(0);
+
+  biomeIndex = Math.floor(elapsed/30);
+  if (biomeIndex>2) biomeIndex=2;
+  document.getElementById("biome").innerText = "Biome: "+biomes[biomeIndex];
+
+  if (biomeIndex===0) drawOverworld();
+  if (biomeIndex===1) drawNether();
+  if (biomeIndex===2) drawEnd();
+
+  if (elapsed>=90) {
+    brushing=false;
+    registerBrush();
+    document.getElementById("reward").innerText=rewardMessage;
+  }
+}
+
+updateDisplay();
+animate();
 </script>
-
 </body>
 </html>
