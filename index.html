@@ -5,12 +5,11 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>Oscar's Pixel Brushing Quest</title>
 <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
-<style>
-:root{
-  --xp:#ff69b4;
-}
 
-*{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+<style>
+:root{ --xp:#ff69b4; }
+
+*{ box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
 
 body{
   margin:0;
@@ -21,140 +20,182 @@ body{
   display:flex;
   justify-content:center;
   align-items:center;
-  background:#5fbf3f;
+  background:#6cc04a;
 }
 
 /* BIOMES */
-
-body.plains{background:#5fbf3f;}
-body.forest{background:#3f9f2f;}
-body.nether{background:#330000;}
-body.end{background:#1a001f;}
+body.plains{ background:#6cc04a; }
+body.forest{ background:#3e8f2f; }
+body.nether{ background:#2b0000; }
+body.end{ background:#120018; }
 
 /* SKY */
 .sky{
   position:absolute;
   top:0;
   width:100%;
-  height:45%;
-  background:#7ec0ee;
+  height:50%;
+  image-rendering:pixelated;
+}
+body.plains .sky{ background:#78c8ff; }
+body.forest .sky{ background:#6ab4e0; }
+body.nether .sky{
+  background:radial-gradient(circle at 50% 40%, #aa0000 0%, #5b0000 60%);
+}
+body.end .sky{ background:#0d0015; }
+
+/* BLOCK GROUND */
+body::before{
+  content:"";
+  position:absolute;
+  bottom:0;
+  width:100%;
+  height:140px;
+  background:
+    linear-gradient(#4aa52e 50px,#7a4b1f 50px,#7a4b1f 140px);
 }
 
-body.forest .sky{background:#6fb0dd;}
-body.nether .sky{background:#5b0000;}
-body.end .sky{background:#100014;}
+/* NETHER LAVA */
+body.nether::before{
+  background:
+  repeating-linear-gradient(
+    0deg,
+    #ff3300 0px,
+    #ff3300 12px,
+    #990000 12px,
+    #990000 24px
+  );
+}
 
 /* SUN */
 .sun{
   position:absolute;
-  top:30px;
-  right:50px;
+  top:40px;
+  right:60px;
   width:64px;
   height:64px;
-  image-rendering:pixelated;
   background:
-    linear-gradient(0deg,#ffd000 50%,#ffea00 50%);
+    linear-gradient(45deg,#fff200 25%,#ffd000 25%,#ffd000 50%,#ffb700 50%,#ffb700 75%,#ff9c00 75%);
   box-shadow:0 0 0 8px #ffcc00;
 }
 
 /* CLOUD */
 .cloud{
   position:absolute;
-  width:96px;
-  height:32px;
-  background:white;
-  animation:cloudMove 60s linear infinite;
+  width:140px;
+  height:48px;
+  background:linear-gradient(#fff 50%,#e6f4ff 50%);
+  animation:cloudMove 90s linear infinite;
 }
-@keyframes cloudMove{from{left:-150px;}to{left:110%;}}
+@keyframes cloudMove{
+  from{ left:-200px; }
+  to{ left:110%; }
+}
 
-/* TREE */
+/* TREES */
 .tree{
   position:absolute;
-  bottom:0;
-  width:48px;
-  height:96px;
+  bottom:140px;
+  width:90px;
+  height:140px;
 }
 .tree .trunk{
   position:absolute;
   bottom:0;
-  left:18px;
-  width:12px;
-  height:40px;
-  background:#5e3716;
+  left:38px;
+  width:14px;
+  height:60px;
+  background:#6b3f1a;
 }
 .tree .leaves{
   position:absolute;
-  bottom:40px;
-  width:48px;
-  height:48px;
-  background:#1f7f1f;
+  bottom:60px;
+  left:0;
+  width:90px;
+  height:80px;
+  background:
+    repeating-linear-gradient(
+      0deg,
+      #1e7a1e 0px,
+      #1e7a1e 8px,
+      #145c14 8px,
+      #145c14 16px
+    );
 }
 
-/* ANIMAL */
-.animal{
+/* ANIMALS */
+.pig,.cow{
   position:absolute;
-  bottom:10px;
-  width:32px;
-  height:20px;
-  background:#fff;
-  animation:animalMove 25s linear infinite;
+  bottom:150px;
+  width:50px;
+  height:34px;
+  animation:animalMove 35s linear infinite;
 }
-@keyframes animalMove{from{left:-60px;}to{left:110%;}}
-
-/* NETHER LAVA GLOW */
-body.nether::after{
-  content:"";
-  position:absolute;
-  bottom:0;
-  width:100%;
-  height:60px;
-  background:linear-gradient(#ff3300,#990000);
+.pig{ background:#ffb6c1; }
+.cow{ background:#ffffff; }
+@keyframes animalMove{
+  from{ left:-120px; }
+  to{ left:110%; }
 }
 
 /* END PILLARS */
 .pillar{
   position:absolute;
-  bottom:0;
-  width:40px;
-  height:140px;
+  bottom:140px;
+  width:60px;
+  height:220px;
   background:#111;
 }
-.pillar::after{
-  content:"";
+.crystal{
   position:absolute;
-  top:-20px;
-  left:5px;
-  width:30px;
-  height:20px;
-  background:#551a8b;
+  top:-25px;
+  left:10px;
+  width:40px;
+  height:40px;
+  background:#8a2be2;
+  box-shadow:0 0 20px #8a2be2;
 }
 
 /* ENDER DRAGON */
 .dragon{
   position:absolute;
-  top:80px;
-  width:120px;
-  height:40px;
-  background:#2a0033;
-  animation:dragonFly 10s linear infinite;
+  top:120px;
+  width:200px;
+  height:70px;
+  background:#2b0033;
+  animation:dragonFly 14s linear infinite;
 }
-@keyframes dragonFly{from{left:-150px;}to{left:110%;}}
+.dragon::before,
+.dragon::after{
+  content:"";
+  position:absolute;
+  top:20px;
+  width:70px;
+  height:20px;
+  background:#2b0033;
+}
+.dragon::before{ left:-60px; }
+.dragon::after{ right:-60px; }
+
+@keyframes dragonFly{
+  from{ left:-300px; }
+  to{ left:110%; }
+}
 
 /* ARROWS */
 .arrow{
   position:absolute;
-  bottom:0;
+  bottom:140px;
   width:4px;
-  height:40px;
+  height:70px;
   background:#ccc;
   animation:arrowShoot 2s linear forwards;
 }
 @keyframes arrowShoot{
-  to{transform:translateY(-500px);opacity:0;}
+  to{ transform:translateY(-650px); opacity:0; }
 }
 
-/* UI unchanged */
-
+/* UI */
 .container{
   position:relative;
   text-align:center;
@@ -167,9 +208,9 @@ body.nether::after{
   z-index:10;
 }
 
-h1{font-size:14px;margin-bottom:15px;text-shadow:4px 4px black;}
-.timer{font-size:36px;margin:20px 0;text-shadow:5px 5px black;}
-.zone{font-size:10px;margin-bottom:10px;color:#ff8cf0;}
+h1{ font-size:14px; margin-bottom:15px; text-shadow:4px 4px black; }
+.timer{ font-size:36px; margin:20px 0; text-shadow:5px 5px black; }
+.zone{ font-size:10px; margin-bottom:10px; color:#ff8cf0; }
 
 button{
   font-family:'Press Start 2P', monospace;
@@ -182,27 +223,21 @@ button{
   margin-top:15px;
   box-shadow:4px 4px #000;
 }
-button:active{transform:translate(4px,4px);box-shadow:none;}
+button:active{ transform:translate(4px,4px); box-shadow:none; }
 
-.xp-bar{width:100%;height:18px;background:#222;border:4px solid black;margin-top:15px;}
+.xp-bar{
+  width:100%;
+  height:18px;
+  background:#222;
+  border:4px solid black;
+  margin-top:15px;
+}
 .xp-fill{
   height:100%;
   width:0%;
-  background:#ff69b4;
+  background:var(--xp);
   transition:width 0.5s linear;
 }
-
-.orb{
-  position:absolute;
-  width:8px;
-  height:8px;
-  background:#ff69b4;
-  animation:orbRise 2s linear forwards;
-}
-@keyframes orbRise{to{transform:translateY(-120px);opacity:0;}}
-
-.warning{animation:flash 0.5s infinite;}
-@keyframes flash{0%,100%{filter:none;}50%{filter:brightness(1.8);}}
 
 .achievement{
   position:absolute;
@@ -214,12 +249,11 @@ button:active{transform:translate(4px,4px);box-shadow:none;}
   padding:20px;
   display:none;
   text-align:center;
-  animation:pop 0.4s ease-out forwards;
   z-index:20;
 }
-@keyframes pop{from{transform:translateX(-50%) scale(0.5);}to{transform:translateX(-50%) scale(1);}}
 </style>
 </head>
+
 <body class="plains">
 
 <div class="sky"></div>
@@ -262,14 +296,15 @@ const audioCtx=new (window.AudioContext||window.webkitAudioContext)();
 function beep(){
   const o=audioCtx.createOscillator();
   const g=audioCtx.createGain();
-  o.connect(g);g.connect(audioCtx.destination);
-  o.type="square";o.frequency.value=800;
+  o.connect(g); g.connect(audioCtx.destination);
+  o.type="square"; o.frequency.value=800;
   g.gain.setValueAtTime(0.1,audioCtx.currentTime);
-  o.start();o.stop(audioCtx.currentTime+0.08);
+  o.start(); o.stop(audioCtx.currentTime+0.08);
 }
 
 function buildBiome(name){
   world.innerHTML="";
+
   if(name==="plains"||name==="forest"){
     const sun=document.createElement("div");
     sun.className="sun";
@@ -277,29 +312,38 @@ function buildBiome(name){
 
     const cloud=document.createElement("div");
     cloud.className="cloud";
-    cloud.style.top="50px";
+    cloud.style.top="70px";
     world.appendChild(cloud);
 
     for(let i=0;i<2;i++){
       const tree=document.createElement("div");
       tree.className="tree";
-      tree.style.left=(10+i*60)+"%";
+      tree.style.left=(15+i*55)+"%";
       tree.innerHTML='<div class="trunk"></div><div class="leaves"></div>';
       world.appendChild(tree);
     }
 
-    const animal=document.createElement("div");
-    animal.className="animal";
-    world.appendChild(animal);
+    const pig=document.createElement("div");
+    pig.className="pig";
+    world.appendChild(pig);
+
+    const cow=document.createElement("div");
+    cow.className="cow";
+    cow.style.animationDuration="45s";
+    world.appendChild(cow);
   }
 
   if(name==="end"){
     for(let i=0;i<3;i++){
       const p=document.createElement("div");
       p.className="pillar";
-      p.style.left=(15+i*30)+"%";
+      p.style.left=(10+i*30)+"%";
+      const crystal=document.createElement("div");
+      crystal.className="crystal";
+      p.appendChild(crystal);
       world.appendChild(p);
     }
+
     const dragon=document.createElement("div");
     dragon.className="dragon";
     world.appendChild(dragon);
@@ -318,15 +362,13 @@ function update(){
   let m=Math.floor(timeLeft/60);
   let s=timeLeft%60;
   timer.textContent=(m<10?"0":"")+m+":"+(s<10?"0":"")+s;
-
   xp.style.width=((120-timeLeft)/120)*100+"%";
 
-  let zoneIndex=Math.floor((120-timeLeft)/30);
-  if(zoneIndex<4) zone.textContent=zones[zoneIndex];
+  let index=Math.floor((120-timeLeft)/30);
+  if(index<4) zone.textContent=zones[index];
 
-  let biomeIndex=Math.floor((120-timeLeft)/30);
-  document.body.className=biomes[biomeIndex]||"end";
-  buildBiome(biomes[biomeIndex]||"end");
+  document.body.className=biomes[index]||"end";
+  buildBiome(biomes[index]||"end");
 
   if(document.body.className==="end") shootArrow();
 
@@ -374,7 +416,6 @@ function reset(){
   isPaused=false;
   document.body.className="plains";
   buildBiome("plains");
-  document.body.classList.remove("warning");
 }
 
 startBtn.addEventListener("click",start);
