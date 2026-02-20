@@ -17,6 +17,30 @@
   --xp:#ff69b4;
 }
 
+body.plains{
+  --sky:#7ec0ee;
+  --grass1:#5fbf3f;
+  --grass2:#4aa52e;
+}
+
+body.forest{
+  --sky:#6fb0dd;
+  --grass1:#3f9f2f;
+  --grass2:#2f8f1f;
+}
+
+body.nether{
+  --sky:#5b0000;
+  --grass1:#4a0000;
+  --grass2:#330000;
+}
+
+body.end{
+  --sky:#1a001f;
+  --grass1:#2a002f;
+  --grass2:#19001f;
+}
+
 *{
   box-sizing:border-box;
   -webkit-tap-highlight-color:transparent;
@@ -51,28 +75,60 @@ body{
       90deg,
       var(--sky) 0px,
       var(--sky) 16px,
-      #6bb5e5 16px,
-      #6bb5e5 32px
+      rgba(255,255,255,0.05) 16px,
+      rgba(255,255,255,0.05) 32px
     );
 }
 
-/* Square Minecraft Sun */
 .sun{
   position:absolute;
   top:20px;
   right:40px;
   width:64px;
   height:64px;
-  background:
-    repeating-linear-gradient(
-      0deg,
-      #ffd800 0px,
-      #ffd800 8px,
-      #ffcc00 8px,
-      #ffcc00 16px
-    );
+  background:#ffd800;
   border:4px solid #e6b800;
-  image-rendering:pixelated;
+}
+
+.tree{
+  position:absolute;
+  bottom:0;
+  width:32px;
+  height:80px;
+}
+
+.tree::before{
+  content:"";
+  position:absolute;
+  bottom:0;
+  left:12px;
+  width:8px;
+  height:32px;
+  background:#5e3716;
+}
+
+.tree::after{
+  content:"";
+  position:absolute;
+  bottom:32px;
+  left:0;
+  width:32px;
+  height:32px;
+  background:#2f8f1f;
+}
+
+.animal{
+  position:absolute;
+  bottom:8px;
+  width:24px;
+  height:16px;
+  background:white;
+  animation:animalMove 20s linear infinite;
+}
+
+@keyframes animalMove{
+  from{left:-40px;}
+  to{left:110%;}
 }
 
 .cloud{
@@ -80,7 +136,6 @@ body{
   width:80px;
   height:32px;
   background:white;
-  image-rendering:pixelated;
   animation:cloudMove 40s linear infinite;
 }
 
@@ -107,23 +162,9 @@ body{
   box-shadow:0 0 0 8px #333;
 }
 
-h1{
-  font-size:14px;
-  margin-bottom:15px;
-  text-shadow:4px 4px black;
-}
-
-.timer{
-  font-size:36px;
-  margin:20px 0;
-  text-shadow:5px 5px black;
-}
-
-.zone{
-  font-size:10px;
-  margin-bottom:10px;
-  color:#ff8cf0;
-}
+h1{font-size:14px;margin-bottom:15px;text-shadow:4px 4px black;}
+.timer{font-size:36px;margin:20px 0;text-shadow:5px 5px black;}
+.zone{font-size:10px;margin-bottom:10px;color:#ff8cf0;}
 
 button{
   font-family:'Press Start 2P', monospace;
@@ -144,20 +185,9 @@ button{
   box-shadow:4px 4px #000;
 }
 
-button:active{
-  transform:translate(4px,4px);
-  box-shadow:none;
-}
+button:active{transform:translate(4px,4px);box-shadow:none;}
 
-.xp-bar{
-  width:100%;
-  height:18px;
-  background:#222;
-  border:4px solid black;
-  margin-top:15px;
-  position:relative;
-}
-
+.xp-bar{width:100%;height:18px;background:#222;border:4px solid black;margin-top:15px;}
 .xp-fill{
   height:100%;
   width:0%;
@@ -180,18 +210,10 @@ button:active{
   animation:orbRise 2s linear forwards;
 }
 
-@keyframes orbRise{
-  to{transform:translateY(-120px);opacity:0;}
-}
+@keyframes orbRise{to{transform:translateY(-120px);opacity:0;}}
 
-.warning{
-  animation:flash 0.5s infinite;
-}
-
-@keyframes flash{
-  0%,100%{filter:none;}
-  50%{filter:brightness(1.8);}
-}
+.warning{animation:flash 0.5s infinite;}
+@keyframes flash{0%,100%{filter:none;}50%{filter:brightness(1.8);}}
 
 .achievement{
   position:absolute;
@@ -212,10 +234,17 @@ button:active{
 }
 </style>
 </head>
-<body>
+<body class="plains">
 
 <div class="sky"></div>
 <div class="sun"></div>
+
+<div class="tree" style="left:10%;"></div>
+<div class="tree" style="left:80%;"></div>
+
+<div class="animal" style="animation-duration:25s;"></div>
+<div class="animal" style="animation-duration:35s;"></div>
+
 <div class="cloud" style="top:40px;"></div>
 <div class="cloud" style="top:80px; animation-duration:60s;"></div>
 
@@ -226,9 +255,7 @@ button:active{
   <button id="startBtn">START BRUSHING</button>
   <button id="pauseBtn" style="display:none;">PAUSE</button>
   <button id="resetBtn" style="display:none;">RESTART QUEST</button>
-  <div class="xp-bar">
-    <div class="xp-fill" id="xp"></div>
-  </div>
+  <div class="xp-bar"><div class="xp-fill" id="xp"></div></div>
 </div>
 
 <div class="achievement" id="achievement">
@@ -258,6 +285,8 @@ const zones=[
   "Bottom Right Zone"
 ];
 
+const biomes=["plains","forest","nether","end"];
+
 const audioCtx=new (window.AudioContext||window.webkitAudioContext)();
 
 function beep(){
@@ -272,6 +301,11 @@ function beep(){
   osc.stop(audioCtx.currentTime+0.08);
 }
 
+function updateBiome(){
+  let index=Math.floor((120-timeLeft)/30);
+  document.body.className=biomes[index]||"end";
+}
+
 function update(){
   let m=Math.floor(timeLeft/60);
   let s=timeLeft%60;
@@ -284,6 +318,8 @@ function update(){
   if(zoneIndex<4){
     zone.textContent=zones[zoneIndex];
   }
+
+  updateBiome();
 
   if(timeLeft===10){
     document.body.classList.add("warning");
@@ -341,6 +377,7 @@ function reset(){
   resetBtn.style.display="none";
   timer.textContent="02:00";
   isPaused=false;
+  document.body.className="plains";
   document.body.classList.remove("warning");
 }
 
